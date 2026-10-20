@@ -2,9 +2,14 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 inspection_reports/
-models/*.pth
-*.pt
-*.onnx
 .venv/
 venv/
 zero_shot_predictions.csv
+
+# Model weights and caches stay out of Git (see models/README.md)
+models/hf_cache/
+models/*.pth
+!models/README.md
+*.pt
+*.onnx
+*.safetensors

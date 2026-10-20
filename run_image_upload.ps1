@@ -1,3 +1,5 @@
+# Opens the disaster image classifier GUI (AI estimate only).
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
-& py image_upload_demo.py
+. "$PSScriptRoot\_common.ps1"
+Invoke-RepoPython image_upload_demo.py

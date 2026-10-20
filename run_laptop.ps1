@@ -3,11 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $projectDir
+Set-Location $PSScriptRoot
+. "$PSScriptRoot\_common.ps1"
 
-if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
-    throw 'Python launcher (py) was not found. Install Python 3.10+ first.'
-}
-
-& py payload_app.py --camera usb --camera-index $CameraIndex --rescue-demo @args
+Invoke-RepoPython payload_app.py --camera usb --camera-index $CameraIndex --rescue-demo @args

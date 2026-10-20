@@ -1,30 +1,126 @@
-# Raspberry Pi Wall Crack Inspection Payload
+# Drone Disaster Rescue Simulation
 
-## Flood rescue 3D simulation
+> **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
-Open `rescue_simulation.html` or run `./run_rescue_simulation.ps1`. This is a
-slow, interactive training simulation: the drone visits four rooftop rescue
-points, detects simulated people, unloads one package at each point, and
-returns to base. Drag to orbit and use the mouse wheel to zoom. All counts are
-explicitly simulated; this does not control a real drone.
+This repository contains three independent parts plus an optional Raspberry Pi crack-inspection payload:
 
-## Disaster image classifier
+| Part | What it does | Run |
+| --- | --- | --- |
+| Disaster image classifier | Zero-shot CLIP: flood / fire / earthquake damage / landslide / storm damage / normal | `py disaster_zero_shot.py samples/flood_street.jpg` or `py image_upload_demo.py` |
+| 3D rescue simulation | Slow drone, flooded buildings, simulated rooftop people, package inventory | `./run_rescue_simulation.ps1` |
+| QGroundControl telemetry (SITL-only) | Streams the simulated mission over UDP MAVLink | `./run_all_demo.ps1` |
+| Wall-crack payload (Pi / laptop) | Perception payload, needs optional `.pth` files | see further below |
 
-The repository also includes a zero-shot disaster image classifier. It uses a
-pretrained CLIP model and does not require a project-specific training dataset.
-The first analysis downloads the pretrained model; later runs reuse the local
-cache. It estimates: flood, fire, earthquake damage, landslide, storm damage,
-or normal scene. Results are AI estimates, not verified emergency decisions.
-
-On Windows:
+## Quick start (Windows, fresh clone)
 
 ```powershell
-py -m pip install -r requirements-demo.txt
-./run_image_upload.ps1
+git clone https://github.com/boss477/drone-disaster-rescue-simulation
+cd drone-disaster-rescue-simulation
+./setup.ps1                 # creates .venv, installs requirements-demo.txt, checks the install
+./setup.ps1 -Mavlink        # add this flag if you want the QGroundControl bridge
 ```
 
-Choose an image in the window. The first launch may take several minutes while
-the CLIP weights download. Internet is only needed for that first model setup.
+If PowerShell blocks scripts, run once: `Set-ExecutionPolicy -Scope Process Bypass`.
+
+`./setup.ps1 -DownloadModel` fetches the CLIP model right away; otherwise it downloads on first use.
+Everything is relative to the repository folder; the `.ps1` scripts use `.venv` automatically.
+Run the tests with `py -m unittest discover -s tests -t .` (use `.venv\Scripts\python` after setup).
+
+## Disaster image classifier (CLIP, zero-shot)
+
+Uses a pretrained CLIP model, no project-specific training data. The six categories are
+flood, fire, earthquake damage, landslide, storm damage and normal scene.
+
+```powershell
+py disaster_zero_shot.py samples/flood_street.jpg      # CLI: one image
+py disaster_zero_shot.py path\to\folder --csv out.csv   # CLI: a folder, optional CSV
+py image_upload_demo.py                                 # GUI: pick an image
+py disaster_zero_shot.py --check                        # are dependencies / model cache present?
+```
+
+- Output shows the predicted category, its confidence and **all** category scores, labelled as an **AI estimate**.
+  Predictions are flagged **UNCERTAIN** when the top score is below 40% or the runner-up is within 10 points.
+- **First use:** if the model is not cached you get a friendly notice, then it downloads once (about 600 MB, internet needed)
+  into `models/hf_cache/` inside the repository. Later runs reuse that cache and work offline.
+  Add `--offline` to refuse downloading. If packages are missing, the tools tell you to run `./setup.ps1`.
+- Scores are relative text-image matches, not calibrated probabilities or measured accuracy.
+
+## 3D rescue simulation
+
+```powershell
+./run_rescue_simulation.ps1        # starts a local server on 127.0.0.1:8765 and opens the browser
+```
+
+Browsers block the bundled Three.js module when a page is opened by double-clicking the `.html` file, so the
+script serves the repository locally (`sim_server.py`, loopback only). If you open the file directly you will see a
+message explaining this. Three.js r180 is bundled in `vendor/` (`three.module.js` + `three.core.js`); nothing is loaded from the internet.
+
+### User guide
+
+1. Press **Start mission** (or Space). The drone is loaded with 6 simulated packages one by one, takes off slowly and visits four rooftops.
+2. At each rooftop it **descends, scans for simulated people** (counter goes up, ring turns green), **unloads one package** (it drops onto the roof) and climbs away.
+3. After the fourth delivery it **returns to base and lands**; a **Mission complete** panel appears. Counters show people detected, deliveries, packages onboard and a simulated battery.
+4. **Pause / Resume** (button or Space) freezes the mission; **Reset** returns everything to the start; **Run again** restarts after completion.
+5. Drag to orbit, mouse wheel to zoom.
+
+Everything is labelled: the HUD says *simulation only*, and each person and the drone carry a "SIMULATED" tag.
+Mission data (sites, speeds, inventory) lives in `sim/mission.json`; the same file drives the telemetry bridge.
+
+## QGroundControl-compatible telemetry (SITL / simulation only)
+
+```
+3D flood simulation (browser)
+        |  POST /api/state (localhost)
+        v
+sim_server.py  --->  mavlink_bridge.py  --UDP MAVLink-->  QGroundControl (UDP 14550)
+                                              (optional)  PX4/ArduPilot SITL
+```
+
+**Safety rules**
+
+- Nothing connects to real hardware. The bridge is **send-only telemetry by default** and never reads or obeys incoming commands.
+- It announces itself as a virtual quadcopter (system id 42) that is **never armed**.
+- Arm / takeoff / land commands exist only for a **local PX4/ArduPilot SITL** and are refused unless **all** of these hold:
+  `"mode": "sitl"` and `"sitl.enabled": true` in `mavlink_config.json`, the `--enable-sitl-commands` flag, and a loopback (`127.0.0.1`) endpoint.
+  This SITL command path is covered by safety-guard unit tests but has not been run against a live PX4/ArduPilot here.
+- Do not connect this project to a real drone until flight control, failsafes, geofence, battery and emergency-stop behaviour have been tested separately.
+
+**What is sent** (MAVLink common messages, 4 Hz, heartbeat as part of each update): `HEARTBEAT`, `GLOBAL_POSITION_INT` and `GPS_RAW_INT`
+(simulated position and altitude, around a configurable home point), `ATTITUDE`, `VFR_HUD`, `SYS_STATUS` and `BATTERY_STATUS` (battery),
+`MISSION_CURRENT` and `MISSION_ITEM_REACHED` (mission progress), `NAMED_VALUE_INT` (`PEOPLE`, `DELIVERED`, `ONBOARD`, `PROGRESS`) and `STATUSTEXT`
+messages such as "[SIM] simulated package 2 delivered".
+
+### Connect QGroundControl
+
+1. Install the optional dependency: `./setup.ps1 -Mavlink`.
+2. Install QGroundControl from <https://qgroundcontrol.com> (optional; any MAVLink GCS on UDP 14550 works).
+3. Start everything: `./run_all_demo.ps1` (opens the simulation and the bridge). Click **Start mission** in the browser.
+4. Open QGroundControl. It listens on UDP port 14550 by default, so **Vehicle 42** appears automatically with live position, altitude, battery and mission progress.
+   Custom values (`PEOPLE`, `DELIVERED`) are visible under *Analyze Tools > MAVLink Inspector*; status messages show in the notification area.
+5. Different port or a GCS on another computer? Edit `qgc.host` / `qgc.udp_port` in `mavlink_config.json`
+   (in QGroundControl: *Application Settings > Comm Links* to add a UDP link on that port).
+
+Start the pieces separately if you prefer:
+
+```powershell
+./start_visual_sim.ps1             # a. 3D visual simulation
+./start_mavlink_bridge.ps1         # b. telemetry bridge (-DryRun prints without sockets, -Standalone ignores the browser)
+./start_sitl.ps1                   # c. PX4/ArduPilot SITL, only if you installed it (WSL2); set PX4_AUTOPILOT_DIR or ARDUPILOT_DIR
+```
+
+If the browser page is closed the bridge falls back to a built-in copy of the same mission so QGroundControl still shows a flight.
+With a real SITL running, SITL itself already reports to QGroundControl on 14550; the bridge appears as a second vehicle (id 42).
+
+## Optional model files (`.pth`)
+
+Large model files are **not in Git** (`.gitignore` excludes `models/*.pth`, `models/hf_cache/`). Only the Raspberry Pi / laptop
+crack-inspection payload needs them; place them in `models/` as described in [models/README.md](models/README.md):
+`wall_detector_model.pth`, `master_crack_model.pth` and (optional) `ssdlite320_mobilenet_v3_large_coco.pth`.
+The classifier, simulation and bridge work without them. `CHECKSUMS.sha256` lists the expected hashes.
+
+---
+
+# Raspberry Pi Wall Crack Inspection Payload
 
 This folder turns the existing laptop demonstration into a self-contained Raspberry Pi payload demonstrator. It automatically reads a Pi Camera or USB webcam, pauses inspection when a person is present, rejects phones/laptops/TV screens in the scan area, checks whether the central region is a wall, and only then runs the crack classifier. It displays a live HUD and saves a CSV inspection log plus crack evidence images.
 
@@ -51,7 +147,7 @@ ResNet50 crack classifier -------- crack / no crack / uncertain
 HUD + CSV log + evidence image + optional LEDs/buzzer
 ```
 
-All three model files are supplied in `models/`, so inference does not need internet access after installation.
+The three model files are **not stored in Git**: place them in `models/` (see `models/README.md`). After that, inference does not need internet access.
 
 ## What was fixed
 
@@ -290,12 +386,17 @@ sha256sum -c CHECKSUMS.sha256
 - `payload_app.py`: camera, models, person/object gate, HUD, logging, and optional GPIO
 - `payload_logic.py`: tested state machine and safety thresholds
 - `payload_config.json`: camera, decision, timing, and GPIO settings
-- `models/`: the two supplied classifiers and packaged SSDLite object detector
+- `models/`: put the optional `.pth` files here (not in Git); also holds the CLIP cache `models/hf_cache/`
+- `disaster_zero_shot.py`, `image_upload_demo.py`: CLIP disaster classifier (CLI, GUI)
+- `rescue_simulation.html`, `sim/`, `vendor/`, `sim_server.py`, `mission_model.py`: 3D simulation and shared mission data
+- `mavlink_bridge.py`, `mavlink_config.json`: QGroundControl telemetry bridge (simulation only)
+- `setup.ps1`, `run_all_demo.ps1`, `start_*.ps1`: Windows setup and start scripts
 - `tests/`: decision-logic unit tests
 - `PROJECT_AUDIT.md`: technical review of the original project
 - `EXHIBITION_AND_VIVA.md`: demo sequence and likely viva answers
 - `install_pi.sh`: one-time Raspberry Pi installer
 - `run_payload.sh`: normal launcher
+- `requirements-demo.txt`, `requirements-mavlink.txt`, `requirements-pi.txt`: Python dependencies
 
 ## Official references
 

@@ -1,0 +1,29 @@
+html,body{margin:0;height:100%;overflow:hidden;background:#07131f;color:#dff7ff;font:14px "Segoe UI",system-ui,sans-serif}
+#hud{position:fixed;z-index:2;left:18px;top:18px;width:290px;padding:16px;border:1px solid #2b7188;border-radius:14px;background:#07131fd9;backdrop-filter:blur(8px);box-shadow:0 12px 35px #0008}
+h1{font-size:18px;margin:0 0 8px;color:#7de7ff}
+.tag{color:#ffc857;font-size:11px;letter-spacing:.5px;font-weight:700;margin-bottom:6px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}
+.stat{background:#102838;padding:8px;border-radius:8px}
+.stat b{display:block;font-size:20px;color:#fff}
+.stat small{color:#8db4c0}
+#inventory{display:flex;gap:6px;margin-bottom:10px;min-height:20px}
+.pkg{width:20px;height:20px;border-radius:4px;border:2px solid #ffc857;background:#ffc85733}
+.pkg.on{background:#ffc857}
+.pkg.out{border-color:#25465b;background:transparent}
+.pkg.done{border-color:#1ac7a2;background:#1ac7a2}
+#phase{font-weight:700;color:#7de7ff;letter-spacing:1px;margin-bottom:6px}
+#progress{height:6px;background:#102838;border-radius:3px;overflow:hidden;margin-bottom:12px}
+#progressBar{height:100%;width:0;background:#1ac7a2}
+button{border:0;border-radius:8px;padding:9px 12px;margin-right:5px;background:#1ac7a2;color:#03211e;font-weight:700;cursor:pointer}
+button.secondary{background:#25465b;color:#dff7ff}
+button:disabled{opacity:.45;cursor:default}
+#status{margin-top:12px;line-height:1.4;color:#b9d9e2}
+#relay{margin-top:8px;font-size:11px;color:#6f98a5}
+#relay.on{color:#1ac7a2}
+#hint{position:fixed;right:18px;bottom:16px;color:#9bc7d1;background:#07131faa;padding:8px 12px;border-radius:8px}
+#complete,#fileWarning{position:fixed;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);max-width:420px;padding:22px 26px;border:1px solid #2b7188;border-radius:14px;background:#07131ff2;text-align:center;box-shadow:0 12px 40px #000a}
+#complete[hidden],#fileWarning[hidden]{display:none}
+#complete h2,#fileWarning h2{margin:0 0 8px;color:#7de7ff}
+.small{color:#ffc857;font-size:12px}
+code{background:#102838;padding:2px 5px;border-radius:4px}
+@media (max-width:640px){#hud{width:auto;right:18px}}

@@ -25,7 +25,7 @@ try:
     import numpy as np
 except ImportError as exc:  # pragma: no cover - depends on target hardware
     raise SystemExit(
-        "OpenCV or NumPy is missing. Run ./install_pi.sh on the Raspberry Pi."
+        "OpenCV or NumPy is missing. On Windows run ./setup.ps1; on a Raspberry Pi run ./install_pi.sh."
     ) from exc
 
 try:
@@ -707,6 +707,16 @@ def main():
 
     model_dir = PROJECT_DIR / "models"
     runtime_cfg = config["runtime"]
+    required = [model_dir / runtime_cfg["wall_model"], model_dir / runtime_cfg["crack_model"]]
+    absent = [path.name for path in required if not path.is_file()]
+    if absent:
+        print(
+            "Missing model file(s): " + ", ".join(absent) + "\n"
+            f"Place them in {model_dir} (they are not stored in Git). See models/README.md.\n"
+            "The disaster classifier, 3D simulation and QGroundControl bridge do not need them.",
+            file=sys.stderr,
+        )
+        return 1
     print("Loading wall and crack models. This can take a moment on Raspberry Pi...")
     models = ClassifierPair(
         model_dir / runtime_cfg["wall_model"],
@@ -956,4 +966,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

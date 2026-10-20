@@ -4,8 +4,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $projectDir
+Set-Location $PSScriptRoot
+. "$PSScriptRoot\_common.ps1"
 
 $resolvedImage = (Resolve-Path -LiteralPath $ImagePath -ErrorAction Stop).Path
-& py payload_app.py --image $resolvedImage --rescue-demo
+Invoke-RepoPython payload_app.py --image $resolvedImage --rescue-demo

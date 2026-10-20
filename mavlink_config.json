@@ -1,0 +1,23 @@
+{
+  "_comment": "SIMULATION ONLY. Telemetry-only by default: no flight commands are sent. Change qgc.udp_port here if QGroundControl listens elsewhere.",
+  "mode": "telemetry",
+  "system_id": 42,
+  "component_id": 1,
+  "qgc": {
+    "host": "127.0.0.1",
+    "udp_port": 14550
+  },
+  "sim_server_url": "http://127.0.0.1:8765/api/state",
+  "update_rate_hz": 4,
+  "use_builtin_mission_when_page_closed": true,
+  "home": {
+    "latitude_deg": 47.397742,
+    "longitude_deg": 8.545594,
+    "altitude_msl_m": 488.0
+  },
+  "sitl": {
+    "enabled": false,
+    "endpoint": "udpout:127.0.0.1:14540",
+    "takeoff_altitude_m": 9
+  }
+}

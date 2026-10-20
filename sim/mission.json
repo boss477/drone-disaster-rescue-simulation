@@ -1,0 +1,48 @@
+{
+  "_comment": "Shared by the 3D simulation (sim/main.js) and the MAVLink bridge (mission_model.py). SIMULATION ONLY. Scene units are metres: +x east, -z north, +y up.",
+  "base": {
+    "x": 0,
+    "z": 14,
+    "pad_height": 1
+  },
+  "cruise_altitude_m": 9,
+  "climb_speed_mps": 1.2,
+  "cruise_speed_mps": 1.6,
+  "descent_speed_mps": 1.0,
+  "packages_loaded": 6,
+  "load_seconds_per_package": 1.0,
+  "detect_seconds": 3,
+  "unload_seconds": 3,
+  "battery_drain_percent_per_second": 0.05,
+  "sites": [
+    {
+      "name": "Rooftop A",
+      "x": -12,
+      "z": -7,
+      "roof_height": 4,
+      "people": 1
+    },
+    {
+      "name": "Rooftop B",
+      "x": 6,
+      "z": -7,
+      "roof_height": 3,
+      "people": 2
+    },
+    {
+      "name": "Rooftop C",
+      "x": 12,
+      "z": 7,
+      "roof_height": 5,
+      "people": 1
+    },
+    {
+      "name": "Rooftop D",
+      "x": -6,
+      "z": 7,
+      "roof_height": 2,
+      "people": 1
+    }
+  ],
+  "hover_above_roof_m": 3
+}

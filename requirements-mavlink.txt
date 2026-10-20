@@ -1,0 +1,2 @@
+# Optional: MAVLink telemetry bridge for QGroundControl (SIMULATION ONLY). Install with ./setup.ps1 -Mavlink
+pymavlink>=2.4.41
