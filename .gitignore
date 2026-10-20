@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+*.py[cod]
+inspection_reports/
+models/*.pth
+*.pt
+*.onnx
+.venv/
+venv/
+zero_shot_predictions.csv

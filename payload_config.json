@@ -1,0 +1,38 @@
+{
+  "camera": {
+    "width": 1280,
+    "height": 720,
+    "fps": 24
+  },
+  "decision": {
+    "history_length": 8,
+    "min_stable_samples": 4,
+    "wall_reject_threshold": 0.45,
+    "wall_accept_threshold": 0.78,
+    "crack_safe_threshold": 0.3,
+    "crack_alert_threshold": 0.7,
+    "blur_minimum": 45.0,
+    "brightness_minimum": 35.0,
+    "brightness_maximum": 225.0
+  },
+  "runtime": {
+    "wall_model": "wall_detector_model.pth",
+    "crack_model": "master_crack_model.pth",
+    "object_model": "ssdlite320_mobilenet_v3_large_coco.pth",
+    "object_score_threshold": 0.4,
+    "torch_threads": 4,
+    "classification_interval_frames": 3,
+    "object_detection_interval_frames": 8,
+    "object_hold_frames": 12,
+    "rescue_person_hold_frames": 8,
+    "person_working_width": 384,
+    "scan_area_ratio": 0.58,
+    "report_directory": "inspection_reports",
+    "evidence_cooldown_seconds": 8.0
+  },
+  "gpio": {
+    "green_led_bcm": 17,
+    "red_led_bcm": 27,
+    "buzzer_bcm": 22
+  }
+}

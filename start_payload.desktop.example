@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Wall Crack Payload
+Comment=Start the autonomous drone payload demonstrator
+Exec=/home/pi/raspberry_pi_payload/run_payload.sh
+Path=/home/pi/raspberry_pi_payload
+Terminal=true
+X-GNOME-Autostart-enabled=true
