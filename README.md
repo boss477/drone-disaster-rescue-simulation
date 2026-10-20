@@ -2,11 +2,29 @@
 
 ## Flood rescue 3D simulation
 
-Open `rescue_simulation.html` or run `.un_rescue_simulation.ps1`. This is a
+Open `rescue_simulation.html` or run `./run_rescue_simulation.ps1`. This is a
 slow, interactive training simulation: the drone visits four rooftop rescue
 points, detects simulated people, unloads one package at each point, and
 returns to base. Drag to orbit and use the mouse wheel to zoom. All counts are
 explicitly simulated; this does not control a real drone.
+
+## Disaster image classifier
+
+The repository also includes a zero-shot disaster image classifier. It uses a
+pretrained CLIP model and does not require a project-specific training dataset.
+The first analysis downloads the pretrained model; later runs reuse the local
+cache. It estimates: flood, fire, earthquake damage, landslide, storm damage,
+or normal scene. Results are AI estimates, not verified emergency decisions.
+
+On Windows:
+
+```powershell
+py -m pip install -r requirements-demo.txt
+./run_image_upload.ps1
+```
+
+Choose an image in the window. The first launch may take several minutes while
+the CLIP weights download. Internet is only needed for that first model setup.
 
 This folder turns the existing laptop demonstration into a self-contained Raspberry Pi payload demonstrator. It automatically reads a Pi Camera or USB webcam, pauses inspection when a person is present, rejects phones/laptops/TV screens in the scan area, checks whether the central region is a wall, and only then runs the crack classifier. It displays a live HUD and saves a CSV inspection log plus crack evidence images.
 
