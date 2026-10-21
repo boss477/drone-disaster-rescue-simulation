@@ -109,6 +109,29 @@ Start the pieces separately if you prefer:
 ```
 
 If the browser page is closed the bridge falls back to a built-in copy of the same mission so QGroundControl still shows a flight.
+
+## Nano servo + laptop camera prototype
+
+The hardware prototype is in `rescue_nano/rescue_nano.ino` and
+`rescue_laptop.py`. This requires an Arduino Nano, servo, GPS module, webcam,
+and a real serial port. Install the Arduino `Servo`, `SoftwareSerial`, and
+`TinyGPSPlus` libraries, select Nano / ATmega328P (Old Bootloader if needed),
+upload the sketch, and use Serial Monitor at 9600 baud. Send `R` to release and
+`L` to lock.
+
+For the laptop side:
+
+```powershell
+py -m pip install -r requirements-hardware.txt
+# Edit PORT = "COM3" in rescue_laptop.py first.
+py rescue_laptop.py
+```
+
+Press `q` to quit, `r` to release manually, and `l` to lock. Automatic release
+requires a person to be detected for 15 consecutive frames. This hardware path
+was syntax-checked here but cannot be tested without the Nano, GPS, servo,
+webcam, and COM port connected. Test with the servo unloaded and propellers
+disconnected.
 With a real SITL running, SITL itself already reports to QGroundControl on 14550; the bridge appears as a second vehicle (id 42).
 
 ## Optional model files (`.pth`)
