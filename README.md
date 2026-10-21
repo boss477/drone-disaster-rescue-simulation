@@ -117,7 +117,7 @@ The hardware prototype is in `rescue_nano/rescue_nano.ino` and
 and a real serial port. Install the Arduino `Servo`, `SoftwareSerial`, and
 `TinyGPSPlus` libraries, select Nano / ATmega328P (Old Bootloader if needed),
 upload the sketch, and use Serial Monitor at 9600 baud. Send `R` to release and
-`L` to lock.
+`L` to lock. Connect the servo signal wire to Nano D6.
 
 For the laptop side:
 

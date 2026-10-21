@@ -2,7 +2,7 @@
 #include <SoftwareSerial.h>
 #include <TinyGPSPlus.h>
 
-const int SERVO_PIN = 9;
+const int SERVO_PIN = 6;
 const int GPS_RX_PIN = 4;
 const int GPS_TX_PIN = 3;
 const int LOCKED = 0;
