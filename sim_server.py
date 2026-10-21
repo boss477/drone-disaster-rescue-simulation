@@ -102,13 +102,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Serve the 3D rescue simulation locally")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--page", choices=("rescue_simulation.html", "live_operations.html"), default="rescue_simulation.html",
+                        help="repository page to open (default: rescue_simulation.html)")
     args = parser.parse_args()
     try:
         server = make_server(args.port)
     except OSError as exc:
         print(f"Cannot start on port {args.port}: {exc}")
         return 1
-    url = f"http://127.0.0.1:{args.port}/rescue_simulation.html"
+    url = f"http://127.0.0.1:{args.port}/{args.page}"
     print("SIMULATION ONLY - no real drone or hardware is controlled.")
     print(f"Serving {PROJECT_DIR} at {url}  (Ctrl+C to stop)")
     if not args.no_browser:

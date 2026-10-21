@@ -40,6 +40,14 @@ class RepositoryTests(unittest.TestCase):
                      "start_sitl.ps1", "models/README.md"):
             self.assertTrue((ROOT / name).is_file(), name)
 
+    def test_live_operations_map_is_present_and_labelled(self):
+        page = (ROOT / "live_operations.html").read_text(encoding="utf-8")
+        script = (ROOT / "live_operations.js").read_text(encoding="utf-8")
+        self.assertIn("SIMULATION", page)
+        self.assertIn("eonet.gsfc.nasa.gov", script)
+        self.assertIn("api.open-meteo.com", script)
+        self.assertTrue((ROOT / "run_live_operations.ps1").is_file())
+
     def test_model_weights_not_tracked_by_git(self):
         try:
             tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Disaster Operations Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="live_operations.css">
+</head>
+<body>
+<main>
+  <aside id="panel">
+    <p class="eyebrow">LIVE DATA + SIMULATION</p>
+    <h1>Disaster Operations Map</h1>
+    <p class="warning">Hazard layers are real public data. The drone, people, route, packages and deliveries are simulated. Never use this page for emergency dispatch or real aircraft control.</p>
+    <div class="controls">
+      <button id="refresh">Refresh live hazards</button>
+      <label><input id="wildfires" type="checkbox" checked> Wildfires</label>
+      <label><input id="floods" type="checkbox" checked> Floods</label>
+      <label><input id="storms" type="checkbox" checked> Severe storms / cyclones</label>
+    </div>
+    <p id="feedStatus" class="muted">Loading active events…</p>
+    <section>
+      <h2>Selected location</h2>
+      <p id="place">Click the map or select a live event.</p>
+      <div id="weather" class="weather">Weather not loaded yet.</div>
+      <button id="setMission" disabled>Use as simulated mission area</button>
+      <a id="openMission" class="missionLink" href="rescue_simulation.html">Open 3D simulated mission</a>
+    </section>
+    <section>
+      <h2>Live events</h2>
+      <p class="muted">Latest NASA EONET records. A point or shape marks a reported event area, not an exact safe/unsafe boundary.</p>
+      <ol id="events"></ol>
+    </section>
+    <footer>Base map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Events: <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a> · Weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a></footer>
+  </aside>
+  <div id="map" aria-label="Live disaster map"></div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="live_operations.js"></script>
+</body>
+</html>

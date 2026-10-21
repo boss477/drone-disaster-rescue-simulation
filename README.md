@@ -8,6 +8,7 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 | --- | --- | --- |
 | Disaster image classifier | Zero-shot CLIP: flood / fire / earthquake damage / landslide / storm damage / normal | `py disaster_zero_shot.py samples/flood_street.jpg` or `py image_upload_demo.py` |
 | 3D rescue simulation | Slow drone, flooded buildings, simulated rooftop people, package inventory | `./run_rescue_simulation.ps1` |
+| Live disaster operations map | Real OpenStreetMap geography, live weather and active wildfire/flood/storm records; simulated mission origin | `./run_live_operations.ps1` |
 | QGroundControl telemetry (SITL-only) | Streams the simulated mission over UDP MAVLink | `./run_all_demo.ps1` |
 | Wall-crack payload (Pi / laptop) | Perception payload, needs optional `.pth` files | see further below |
 
@@ -65,6 +66,19 @@ message explaining this. Three.js r180 is bundled in `vendor/` (`three.module.js
 
 Everything is labelled: the HUD says *simulation only*, and each person and the drone carry a "SIMULATED" tag.
 Mission data (sites, speeds, inventory) lives in `sim/mission.json`; the same file drives the telemetry bridge.
+
+## Live disaster operations map (real public data)
+
+```powershell
+./run_live_operations.ps1
+```
+
+This opens a real-world OpenStreetMap base map with live location weather and currently open wildfire, flood and severe-storm records from NASA EONET. Click a real event or any location to see weather and select it as the origin for the **simulated** drone mission. Then choose **Use as simulated mission area** and open the 3D mission. QGroundControl telemetry will appear around that chosen latitude/longitude when the browser mission is running, but it is still generated simulation data.
+
+- The live map requires internet access. It uses map tiles only for the current interactive view—there is no prefetching or bulk download.
+- Event geometry and timestamps are source data, not a live emergency command, precise flood boundary, evacuation instruction or flight clearance.
+- NASA EONET event records, Open-Meteo weather and OpenStreetMap tiles can be temporarily unavailable. The page shows a timestamp/error rather than reusing an unlabelled stale result.
+- For a fully offline exhibition, use a licensed offline map-data provider or self-hosted tiles; do not bulk-download `tile.openstreetmap.org`.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 

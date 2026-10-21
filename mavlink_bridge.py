@@ -109,7 +109,17 @@ def sim_to_geo(home: dict[str, float], x: float, z: float) -> tuple[float, float
 
 def telemetry_values(cfg: dict[str, Any], state: dict[str, Any], mission: dict[str, Any]) -> dict[str, Any]:
     """Convert a simulation state into MAVLink-unit values."""
-    home = cfg["home"]
+    home = dict(cfg["home"])
+    # A browser may choose a real map location. It only changes where SIMULATED
+    # telemetry is drawn; it never authorizes any real-flight command.
+    origin = state.get("map_origin")
+    if isinstance(origin, dict):
+        try:
+            lat, lon = float(origin["latitude_deg"]), float(origin["longitude_deg"])
+            if -90 <= lat <= 90 and -180 <= lon <= 180:
+                home.update(latitude_deg=lat, longitude_deg=lon)
+        except (KeyError, TypeError, ValueError):
+            pass
     pos, vel = state["position"], state["velocity"]
     pad_height = mission["base"]["pad_height"]
     lat, lon = sim_to_geo(home, pos["x"], pos["z"])

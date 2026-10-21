@@ -4,6 +4,19 @@ import * as THREE from '../vendor/three.module.js';
 
 const $ = (id) => document.getElementById(id);
 const mission = await (await fetch(new URL('./mission.json', import.meta.url))).json();
+function selectedLiveLocation() {
+  const params = new URLSearchParams(location.search);
+  const lat = Number(params.get('lat')), lon = Number(params.get('lon'));
+  const valid = Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+  if (valid) return { latitude_deg: lat, longitude_deg: lon, name: params.get('name') || 'Selected live-map area' };
+  try {
+    const saved = JSON.parse(localStorage.getItem('liveOpsMissionLocation'));
+    if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)) return { latitude_deg: saved.lat, longitude_deg: saved.lon, name: saved.name || 'Selected live-map area' };
+  } catch { /* ignore malformed local storage */ }
+  return null;
+}
+const liveLocation = selectedLiveLocation();
+if (liveLocation) $('missionLocation').textContent = `SIMULATED mission origin: ${liveLocation.name} (${liveLocation.latitude_deg.toFixed(5)}, ${liveLocation.longitude_deg.toFixed(5)})`;
 
 // ---------------------------------------------------------------- timeline
 // Mirrors mission_model.py. Scene metres: +x east, -z north, +y up.
@@ -68,6 +81,7 @@ function stateAt(m, tl, tRaw) {
     packages_loaded: loaded, packages_onboard: loaded - delivered, packages_delivered: delivered,
     people_detected: detected, site_index: cur.site, site_name: cur.site >= 0 ? m.sites[cur.site].name : '',
     mission_seq: seq, mission_total: items, complete, simulated: true,
+    map_origin: liveLocation,
     unload_fraction: cur.phase === 'unload' && !complete ? f : 0,
     detect_fraction: cur.phase === 'detect' && !complete ? f : 0,
   };

@@ -79,6 +79,14 @@ class TelemetryTests(unittest.TestCase):
         self.assertGreater(v["rel_alt_mm"], 0)
         self.assertTrue(0 <= v["battery_pct"] <= 100)
 
+    def test_live_map_origin_changes_simulated_telemetry_only(self):
+        mission, state = sample_state()
+        state["map_origin"] = {"latitude_deg": 10.0, "longitude_deg": 76.0, "name": "Demo area"}
+        v = mb.telemetry_values(self.cfg, state, mission)
+        self.assertAlmostEqual(v["lat_e7"] / 1e7, 10.0, delta=0.01)
+        self.assertAlmostEqual(v["lon_e7"] / 1e7, 76.0, delta=0.01)
+        self.assertFalse(mb.commands_allowed(self.cfg, cli_flag=True))
+
     def test_messages_never_arm_and_contain_no_commands(self):
         mission, state = sample_state()
         messages = mb.build_messages(self.cfg, state, mission, 1000)

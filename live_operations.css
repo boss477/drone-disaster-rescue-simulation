@@ -1,0 +1,27 @@
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background:#07131f; color:#e8f3fb; }
+* { box-sizing:border-box; }
+body { margin:0; min-width:320px; }
+main { display:grid; grid-template-columns:minmax(290px,390px) 1fr; height:100vh; }
+#panel { overflow:auto; padding:22px; background:linear-gradient(160deg,#081b2b,#07131f 68%); border-right:1px solid #24445a; }
+#map { min-height:420px; background:#122333; }
+h1 { font-size:1.55rem; margin:.1rem 0 .7rem; }
+h2 { font-size:1rem; margin:1.2rem 0 .45rem; color:#9ee7ff; }
+p { line-height:1.45; }
+.eyebrow { color:#1ac7a2; font-size:.75rem; font-weight:800; letter-spacing:.12em; margin:0; }
+.warning { padding:10px; border:1px solid #8b6233; border-radius:8px; background:#3c2d1999; color:#ffe3a6; font-size:.87rem; }
+.muted, footer { color:#9bb3c4; font-size:.8rem; }
+.controls { display:grid; gap:8px; margin:14px 0; }
+button { border:0; border-radius:7px; padding:10px 12px; font-weight:700; color:#031820; background:#1ac7a2; cursor:pointer; }
+button:disabled { cursor:not-allowed; opacity:.48; }
+label { font-size:.9rem; }
+section { border-top:1px solid #24445a; margin-top:14px; padding-top:2px; }
+.weather { min-height:52px; border:1px solid #264b61; border-radius:8px; padding:9px; background:#0c2334; font-size:.86rem; }
+.missionLink { display:block; color:#9ee7ff; font-weight:700; margin-top:10px; text-decoration:none; }
+ol { margin:0; padding-left:1.25rem; }
+li { margin:0 0 11px; padding-left:3px; }
+li button { background:transparent; color:#d8eff9; padding:0; font:inherit; text-align:left; text-decoration:underline; }
+.eventMeta { display:block; color:#9bb3c4; font-size:.76rem; margin-top:2px; }
+a { color:#9ee7ff; }
+footer { border-top:1px solid #24445a; margin-top:18px; padding-top:13px; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background:#0c2334; color:#ecf8ff; }
+@media (max-width:720px) { main { grid-template-columns:1fr; grid-template-rows:auto 58vh; height:auto; } #panel { max-height:58vh; } }
