@@ -227,6 +227,31 @@ class StateSource:
         return mission_model.state_at(self.mission, self.timeline, time.monotonic() - self._standalone_start)
 
 
+class ServoLink:
+    """Optional Nano latch link. Disabled unless explicitly enabled in config."""
+    def __init__(self, cfg: dict[str, Any]):
+        if not cfg.get("hardware_servo", {}).get("enabled", False):
+            self.serial = None
+            return
+        try:
+            import serial
+            servo = cfg["hardware_servo"]
+            self.serial = serial.Serial(servo["port"], int(servo.get("baud", 9600)), timeout=0.2)
+            time.sleep(2)
+            print(f"Hardware servo link ENABLED on {servo['port']} (simulation trigger only)")
+        except Exception as exc:
+            raise RuntimeError(f"Cannot open hardware servo link: {exc}") from exc
+
+    def send(self, command: bytes) -> None:
+        if self.serial is not None:
+            self.serial.write(command)
+            self.serial.flush()
+
+    def close(self) -> None:
+        if self.serial is not None:
+            self.serial.close()
+
+
 # ------------------------------------------------------------------- output ---
 
 def emit(connection: Any, messages: list[tuple[str, tuple]]) -> None:
@@ -287,6 +312,8 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--duration", type=float, help="Stop after this many seconds (default: run until Ctrl+C)")
     parser.add_argument("--enable-sitl-commands", action="store_true",
                         help="Allow arm/takeoff/land commands to a LOCAL SITL (also needs mode=sitl and sitl.enabled)")
+    parser.add_argument("--enable-hardware-servo", action="store_true",
+                        help="Allow simulated unload phases to send R/L to the configured Nano servo")
     return parser.parse_args(argv)
 
 
@@ -326,6 +353,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         print(f"Sending simulated telemetry to QGroundControl at {target} (system id {cfg['system_id']})")
     source = StateSource(cfg, mission, standalone=args.standalone)
+    if args.enable_hardware_servo:
+        cfg.setdefault("hardware_servo", {})["enabled"] = True
+    try:
+        servo = ServoLink(cfg)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     period = 1.0 / float(cfg.get("update_rate_hz", 4))
     started = time.monotonic()
     previous: Optional[dict[str, Any]] = None
@@ -349,6 +383,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                         "phase", "lat_e7", "lon_e7", "rel_alt_mm", "battery_pct", "people_detected", "packages_delivered")}))
                 else:
                     emit(connection, messages)
+                if previous is not None and state["phase"] != previous["phase"]:
+                    if state["phase"] == "unload":
+                        servo.send(b"R")
+                        print("[SIM] rescue delivery -> servo RELEASE (R)")
+                    elif previous["phase"] == "unload":
+                        servo.send(b"L")
+                        print("[SIM] delivery complete -> servo LOCK (L)")
                 if sitl and previous is not None and state["phase"] != previous["phase"]:
                     if state["phase"] == "takeoff":
                         sitl.arm_and_takeoff()
@@ -358,6 +399,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             time.sleep(max(period - (time.monotonic() - tick), 0.0))
     except KeyboardInterrupt:
         print("\nStopped.")
+    finally:
+        servo.close()
     return 0
 
 

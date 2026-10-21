@@ -9,6 +9,12 @@
   },
   "sim_server_url": "http://127.0.0.1:8765/api/state",
   "update_rate_hz": 4,
+  "hardware_servo": {
+    "enabled": false,
+    "port": "COM3",
+    "baud": 9600,
+    "release_seconds": 2
+  },
   "use_builtin_mission_when_page_closed": true,
   "home": {
     "latitude_deg": 47.397742,
