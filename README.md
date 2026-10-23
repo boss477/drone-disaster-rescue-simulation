@@ -2,6 +2,8 @@
 
 > **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
+**Project status:** the no-key software demo, operator workflow, mission logs/replay, QGroundControl output and receive-only SITL visualization are implemented. Real AI metrics, full PX4/ArduPilot validation and 100 physical latch cycles remain. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
+
 This repository contains three independent parts plus an optional Raspberry Pi crack-inspection payload:
 
 | Part | What it does | Run |

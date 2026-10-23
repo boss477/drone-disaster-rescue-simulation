@@ -1,36 +1,118 @@
-# Project implementation status
+# Project status and remaining work
 
-This file separates demonstrated behavior from planned integrations.
+Last audited: **23 October 2026**
 
-## Implemented and locally verified
+This is the source-of-truth checklist for the rescue-drone project. “Verified” means the repository contains the implementation and it has been exercised locally or covered by automated tests. Real incident data, AI detections, simulated flight, and physical hardware evidence are kept separate.
 
-- Zero-shot CLIP disaster classification with uncertainty reporting.
-- No-key OpenStreetMap Cesium globe with optional Cesium ion terrain/buildings.
-- One operator-controlled aid mission with successful and required-abort paths.
-- Candidate confirmation, independent release approval, telemetry fields, and downloadable mission evidence.
-- Downloaded mission evidence contains position samples and can be replayed safely in the dashboard without sending commands.
-- Recorded-video or camera person candidates with CSV evidence logs and no automatic payload release.
-- Held-out aerial-person evaluation for precision, recall, false positives, misses, and throughput.
-- Telemetry-only MAVLink output for QGroundControl, including candidate and approval flags.
-- Receive-only PX4/ArduPilot telemetry input for SITL-driven Cesium position, heading, battery, mode, armed state, and GPS status.
-- A telemetry-only mock vehicle exercises the complete MAVLink receive path when a full autopilot is unavailable; it is explicitly not presented as flight dynamics or SITL.
-- Bench-servo release gate requiring candidate confirmation, explicit hardware enablement, and an open serial link.
+## Current result
 
-## Waiting for user-provided resources
+The repository is already a complete **software demonstration platform** that runs without an API key. It combines disaster-scene classification, recorded-footage person detection, an operator-controlled Cesium rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL-to-Cesium path, mission evidence, and replay.
 
-- Cesium ion token: enables hosted terrain and 3D buildings. The basic map works without it.
-- VisDrone held-out images/labels or another licensed aerial-person dataset: required for real evaluation numbers.
-- FloodNet images/labels: required for flood-segmentation work; the existing CLIP result is scene classification, not segmentation.
+It is **not yet a validated real rescue drone**. A real autopilot installation, measured AI results on held-out data, and repeatable latch hardware evidence are still required.
 
-## External software still required
+## Implemented and verified
 
-- PX4 SITL or ArduPilot SITL. The current Ubuntu WSL installation is 26.04; the current PX4 documentation lists Ubuntu 22.04 and 24.04 as supported and says 26.04 is not yet supported.
-- QGroundControl can already view the project's generated telemetry. The SITL-to-Cesium path is implemented but cannot be end-to-end demonstrated until a supported SITL installation is available.
+| Area | Current implementation | Evidence / entry point |
+| --- | --- | --- |
+| Disaster classification | Zero-shot CLIP categories: flood, fire, earthquake damage, landslide, storm damage, normal and uncertain | `disaster_zero_shot.py`, `image_upload_demo.py` |
+| First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
+| Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
+| Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
+| Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
+| Optional detailed Earth view | Cesium terrain and OSM 3D buildings; token remains in browser session storage | Token field in `earth_rescue.html` |
+| Mission evidence | Timestamped decisions plus half-second position, altitude, heading, battery, phase and package samples | **Download JSON** in the dashboard |
+| Mission replay | Replays a saved mission route, phase, battery and delivery count at 2× without sending commands | **Replay a mission JSON** in the dashboard |
+| Recorded footage AI | YOLO person candidates from a video/camera; explicit confirm/reject; CSV evidence | `./run_recorded_footage.ps1 <video>` |
+| AI evaluation | Held-out YOLO-format evaluator reports TP, FP, FN, precision, recall and FPS | `evaluate_aerial_people.py` |
+| QGroundControl output | MAVLink position, battery, progress, people, packages, candidate and release-approval values | `mavlink_bridge.py`, UDP 14550 |
+| Autopilot input | Receive-only PX4/ArduPilot telemetry drives Cesium position, heading, battery, mode, armed and GPS state | `sitl_telemetry_adapter.py` |
+| No-autopilot integration demo | A clearly labelled mock MAVLink source verifies the receive path; it is not flight dynamics or an autopilot | `./run_all_demo.ps1 -MockSitl` |
+| Nano latch protocol | 9600-baud `R`/`L` protocol and status acknowledgement; software release gate requires confirmation and explicit hardware enablement | `rescue_nano/rescue_nano.ino`, `rescue_laptop.py` |
+| Repository safety | Loopback server, no committed model weights/API keys, simulation labels and SITL command guards | automated tests and `.gitignore` |
 
-## Hardware evidence still required
+## Run the working demonstrations now
 
-- Stable external servo power and common ground.
-- Latch-position feedback sensor.
-- Repeated loaded bench cycles with commanded-versus-observed results.
+### Fastest full software demo
 
-All drone positions, people, packages, releases, and mission outcomes in the browser are simulated.
+```powershell
+./setup.ps1 -Mavlink
+./run_all_demo.ps1 -MockSitl
+```
+
+In the browser choose **Follow PX4 / ArduPilot SITL telemetry**, confirm the simulated candidate, start the mission, then approve or abort the release. Open QGroundControl to inspect UDP 14550 telemetry.
+
+### No MAVLink or QGroundControl
+
+```powershell
+./run_earth_rescue.ps1
+```
+
+The no-key OpenStreetMap globe and scripted mission work immediately. A Cesium token is optional.
+
+### Verify the repository
+
+```powershell
+node --check earth_rescue.js
+py -m unittest discover -s tests -q
+```
+
+The latest audit passed **68 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
+
+## Work still required
+
+### 1. Real AI measurements — blocked on a dataset
+
+- Obtain a licensed held-out aerial-person set, preferably a VisDrone validation subset converted to YOLO format.
+- Keep evaluation data separate from any training/fine-tuning data.
+- Run `evaluate_aerial_people.py` and publish precision, recall, false positives, missed people and FPS.
+- Add representative flood imagery (FloodNet is suitable) if flood segmentation is required. CLIP currently classifies the overall scene; it does not draw flood boundaries.
+- Record dataset version, license, split and preprocessing in the results.
+
+### 2. Full autopilot simulation — blocked on supported SITL
+
+- Install PX4 or ArduPilot SITL in a supported environment.
+- The machine currently has Ubuntu WSL 26.04; current PX4 documentation supports Ubuntu 22.04/24.04, so use a supported WSL distribution rather than forcing an unsupported install.
+- Start with `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` or `ardupilot`.
+- Verify QGroundControl, geofence, failsafe, low-battery, GPS-loss, aborted delivery and return-to-home scenarios.
+- Save the resulting mission evidence JSON for each repeatable scenario.
+
+### 3. Physical latch validation — blocked on hardware evidence
+
+- Power the MG90S from a stable external 5 V supply; join supply ground to Nano ground.
+- Keep the control signal on Nano D6 and serial at 9600 baud.
+- Add a latch-position feedback switch/sensor. A command acknowledgement alone does not prove physical movement.
+- Run at least **100 loaded bench cycles** and record command, acknowledgement, observed position, elapsed time and failure reason.
+- Test only on a bench with propellers removed. Real-flight control is outside this repository’s validated scope.
+
+### 4. Optional Cesium enhancement — waiting for token
+
+- Paste a Cesium ion token into the dashboard to enable hosted terrain and OSM 3D buildings.
+- The token is optional and must never be committed. The basic OpenStreetMap globe already works without it.
+
+## Explicitly not required
+
+- A promotional/demo video is no longer part of the requested scope.
+- A Google Maps or Google Earth paid API is not required.
+- Training a disaster classifier dataset is not required for the current zero-shot CLIP mode.
+- Connecting to or commanding a real aircraft is not required and has not been validated.
+
+## Recommended completion order
+
+1. Run and preserve one successful and one aborted mock-MAVLink mission log.
+2. Add the held-out aerial dataset and publish evaluation results.
+3. Install supported PX4/ArduPilot SITL and repeat the two mission scenarios.
+4. Finish servo power/feedback and complete 100 documented bench cycles.
+5. Add the optional Cesium token last; it improves visuals but does not affect core correctness.
+
+## Completion definition
+
+Call the project “validated” only when all of these are true:
+
+- Fresh-clone setup and all automated tests pass.
+- A fixed held-out dataset has published AI metrics and failure examples.
+- Successful and aborted missions are repeated in real SITL with saved logs.
+- QGroundControl displays expected telemetry and safety scenarios are documented.
+- The latch completes 100 loaded cycles with physical position feedback and recorded outcomes.
+- No API key, large model, private dataset or generated mission log is committed accidentally.
+
+Until then, present it honestly as a **simulation and operator-workflow prototype**.
