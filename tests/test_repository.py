@@ -52,12 +52,14 @@ class RepositoryTests(unittest.TestCase):
     def test_operator_controlled_earth_mission_is_present(self):
         page = (ROOT / "earth_rescue.html").read_text(encoding="utf-8")
         script = (ROOT / "earth_rescue.js").read_text(encoding="utf-8")
-        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog", "flightSource"):
+        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog", "flightSource", "replayFile"):
             self.assertIn(f'id="{control}"', page)
         self.assertIn("operator_release_approved", script)
         self.assertIn("sessionStorage", script)
         self.assertNotIn("tile.googleapis.com", script)
         self.assertIn("/api/autopilot", script)
+        self.assertIn("samples.push", script)
+        self.assertIn("startReplay", script)
         self.assertTrue((ROOT / "run_earth_rescue.ps1").is_file())
 
     def test_model_weights_not_tracked_by_git(self):

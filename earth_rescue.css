@@ -22,6 +22,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 section{border-top:1px solid #263e50;margin-top:14px;padding-top:9px}
 h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 .row,.log-head{justify-content:space-between}
+.replay-picker{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0;color:#a9bdc9;font-size:11px}
+.replay-picker input{max-width:190px;padding:5px;font-size:10px}
 .row h2,.log-head h2{margin:3px 0}
 .checks{font-size:11px;color:#b9cbd6}
 .event-list{display:grid;gap:6px;max-height:175px;overflow:auto}

@@ -28,6 +28,7 @@ let evidence = [];
 let targetConfirmed = false;
 let autopilotConnected = false;
 let autopilotTelemetry = null;
+let replayGeneration = 0;
 
 function followsSITL() {
   return $('flightSource').value === 'sitl';
@@ -143,20 +144,24 @@ async function initGlobe(token = '') {
   }
 }
 
-function logEvent(type, detail) {
-  const item = { timestamp: new Date().toISOString(), mission_seconds: Number(missionClock.toFixed(1)), type, detail };
-  evidence.push(item);
+function appendEventRow(item) {
   const row = document.createElement('li');
   const time = document.createElement('time');
   const label = document.createElement('b');
   const message = document.createElement('span');
   time.textContent = new Date(item.timestamp).toLocaleTimeString();
-  label.textContent = type;
-  message.textContent = detail;
+  label.textContent = item.type;
+  message.textContent = item.detail;
   row.append(time, label, message);
   $('missionLog').append(row);
   $('missionLog').scrollTop = $('missionLog').scrollHeight;
   $('downloadLog').disabled = false;
+}
+
+function logEvent(type, detail) {
+  const item = { timestamp: new Date().toISOString(), mission_seconds: Number(missionClock.toFixed(1)), type, detail };
+  evidence.push(item);
+  appendEventRow(item);
 }
 
 function kindFor(event) {
@@ -349,6 +354,7 @@ function setMissionPhase(phase, detail) {
 
 function buildMission() {
   if (!viewer || !selected || !targetConfirmed || (followsSITL() && !autopilotConnected)) return;
+  replayGeneration += 1;
   clearMissionEntities();
   const target = targetFor();
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
@@ -363,6 +369,8 @@ function buildMission() {
     returnFrom: target,
     scenario: $('scenario').value,
     flightSource: $('flightSource').value,
+    samples: [],
+    lastSampleAt: -1,
   };
   routeEntities.push(viewer.entities.add({
     polyline: {
@@ -570,12 +578,26 @@ function animateMission(now) {
     ? autopilotTelemetry.battery_percent : Math.max(0, 100 - missionClock * 0.35);
   $('battery').textContent = `${Number(battery).toFixed(0)}%`;
   $('batteryLabel').textContent = followsSITL() ? 'SITL battery' : 'simulated battery';
+  if (missionClock - mission.lastSampleAt >= 0.5 || !running) {
+    mission.lastSampleAt = missionClock;
+    mission.samples.push({
+      t: Number(missionClock.toFixed(2)),
+      lat: Number(position.lat.toFixed(7)),
+      lon: Number(position.lon.toFixed(7)),
+      alt: Number(position.alt.toFixed(2)),
+      heading_deg: followsSITL() ? (autopilotTelemetry?.heading_deg ?? 0) : 0,
+      battery_percent: Number(Number(battery).toFixed(1)),
+      phase: mission.phase,
+      packages_delivered: mission.delivered,
+    });
+  }
   renderInventory(mission.packageCount, mission.delivered);
   postState(now, position);
   if (running) requestAnimationFrame(animateMission);
 }
 
 function resetMission() {
+  replayGeneration += 1;
   running = false;
   paused = false;
   missionClock = 0;
@@ -663,6 +685,74 @@ $('downloadLog').onclick = () => {
   link.download = `rescue-mission-${new Date().toISOString().replaceAll(':', '-')}.json`;
   link.click();
   URL.revokeObjectURL(link.href);
+};
+
+function isReplayRecord(record) {
+  const samples = record?.mission?.samples;
+  return record?.simulation_only === true && Array.isArray(samples) && samples.length >= 2
+    && samples.every(sample => Number.isFinite(sample.t) && Number.isFinite(sample.lat)
+      && Number.isFinite(sample.lon) && Number.isFinite(sample.alt));
+}
+
+function startReplay(record) {
+  if (!viewer || !isReplayRecord(record)) throw new Error('This is not a valid simulated mission log with position samples.');
+  replayGeneration += 1;
+  const generation = replayGeneration;
+  running = false;
+  paused = false;
+  clearMissionEntities();
+  const samples = record.mission.samples;
+  mission = record.mission;
+  const positions = samples.flatMap(sample => [sample.lon, sample.lat, sample.alt]);
+  routeEntities.push(viewer.entities.add({
+    polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions), width: 4, material: Cesium.Color.fromCssColorString('#ffc45c') },
+  }));
+  drone = viewer.entities.add({
+    position: Cesium.Cartesian3.fromDegrees(samples[0].lon, samples[0].lat, samples[0].alt),
+    model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 64, maximumScale: 120 },
+    point: { pixelSize: 10, color: Cesium.Color.fromCssColorString('#ffc45c') },
+    label: markerLabel('MISSION REPLAY · SIMULATED', Cesium.Color.fromCssColorString('#ffc45c')),
+  });
+  evidence = Array.isArray(record.events) ? record.events : [];
+  $('missionLog').textContent = '';
+  evidence.forEach(appendEventRow);
+  $('phase').textContent = 'REPLAY';
+  $('missionStatus').textContent = 'Replaying recorded simulated telemetry at 2× speed. No commands or telemetry are being sent.';
+  $('pause').disabled = true;
+  $('abortMission').disabled = true;
+  $('approveRelease').disabled = true;
+  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(samples[0].lon, samples[0].lat, Math.max(800, samples[0].alt + 500)) });
+  const started = performance.now();
+  const duration = samples.at(-1).t;
+  function replayFrame(now) {
+    if (generation !== replayGeneration) return;
+    const replayTime = Math.min((now - started) / 500, duration);
+    let index = samples.findIndex(sample => sample.t >= replayTime);
+    if (index < 0) index = samples.length - 1;
+    const sample = samples[index];
+    drone.position = Cesium.Cartesian3.fromDegrees(sample.lon, sample.lat, sample.alt);
+    const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(sample.heading_deg || 0), 0, 0);
+    drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
+    $('phase').textContent = `REPLAY · ${(sample.phase || 'mission').replaceAll('_', ' ').toUpperCase()}`;
+    $('battery').textContent = `${Number(sample.battery_percent ?? 0).toFixed(0)}%`;
+    $('batteryLabel').textContent = 'recorded battery';
+    $('delivered').textContent = sample.packages_delivered ?? 0;
+    if (replayTime < duration) requestAnimationFrame(replayFrame);
+    else $('missionStatus').textContent = 'Replay complete. Load another log or reset to prepare a new mission.';
+  }
+  requestAnimationFrame(replayFrame);
+}
+
+$('replayFile').onchange = async event => {
+  const [file] = event.target.files;
+  if (!file) return;
+  try {
+    startReplay(JSON.parse(await file.text()));
+  } catch (error) {
+    $('missionStatus').textContent = `Replay rejected: ${error.message || error}`;
+  } finally {
+    event.target.value = '';
+  }
 };
 
 const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || '';

@@ -8,6 +8,7 @@ This file separates demonstrated behavior from planned integrations.
 - No-key OpenStreetMap Cesium globe with optional Cesium ion terrain/buildings.
 - One operator-controlled aid mission with successful and required-abort paths.
 - Candidate confirmation, independent release approval, telemetry fields, and downloadable mission evidence.
+- Downloaded mission evidence contains position samples and can be replayed safely in the dashboard without sending commands.
 - Recorded-video or camera person candidates with CSV evidence logs and no automatic payload release.
 - Held-out aerial-person evaluation for precision, recall, false positives, misses, and throughput.
 - Telemetry-only MAVLink output for QGroundControl, including candidate and approval flags.
