@@ -4,6 +4,8 @@
 
 **Project status:** the no-key software demo, operator workflow, mission logs/replay, QGroundControl output and receive-only SITL visualization are implemented. Real AI metrics, full PX4/ArduPilot validation and 100 physical latch cycles remain. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
 
+This repository intentionally integrates established projects instead of rebuilding them. See [UPSTREAM_INTEGRATIONS.md](UPSTREAM_INTEGRATIONS.md) for the PX4, QGroundControl, Ultralytics and OpenDroneMap boundaries plus the exact teammate handoff.
+
 This repository contains three independent parts plus an optional Raspberry Pi crack-inspection payload:
 
 | Part | What it does | Run |
@@ -104,6 +106,24 @@ py evaluate_aerial_people.py --images path\to\images --labels path\to\labels --o
 ```
 
 Keep the evaluation images separate from training images and report the model, confidence threshold and IoU threshold with the results. VisDrone classes `0` (pedestrian) and `1` (people) are treated as one person category by default.
+
+Record the external dataset's source, license, version and split before evaluation:
+
+```powershell
+py dataset_manifest.py path\to\dataset --name VisDrone --version 2019 --source-url https://github.com/VisDrone/VisDrone-Dataset --license "verify with dataset publisher"
+```
+
+The dataset directory must contain separate `train/` and `val/` folders. The tool refuses identical relative image names across those splits and writes only a small ignored manifest; it never copies dataset images into Git.
+
+## OpenDroneMap survey processing
+
+This repository uses the official [OpenDroneMap](https://github.com/OpenDroneMap/ODM) Docker image rather than implementing photogrammetry. Put an overlapping survey image set in `path\to\odm-data\rescue-survey\images`, then run:
+
+```powershell
+./run_open_dronemap.ps1 -DatasetRoot path\to\odm-data -ProjectName rescue-survey -DetailedModel
+```
+
+The external directory receives ODM's orthophoto, point cloud, elevation products and textured 3D model. These can be large and must remain outside Git. They are reconstruction products from supplied imagery, not live disaster evidence.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 

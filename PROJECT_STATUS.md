@@ -24,6 +24,8 @@ It is **not yet a validated real rescue drone**. A real autopilot installation, 
 | Mission replay | Replays a saved mission route, phase, battery and delivery count at 2× without sending commands | **Replay a mission JSON** in the dashboard |
 | Recorded footage AI | YOLO person candidates from a video/camera; explicit confirm/reject; CSV evidence | `./run_recorded_footage.ps1 <video>` |
 | AI evaluation | Held-out YOLO-format evaluator reports TP, FP, FN, precision, recall and FPS | `evaluate_aerial_people.py` |
+| Dataset provenance | Records external dataset source, version, license, split counts and an inventory digest; blocks train/validation filename overlap | `dataset_manifest.py` |
+| Aerial reconstruction | Runs the official OpenDroneMap Docker image on an external overlapping image set | `run_open_dronemap.ps1` |
 | QGroundControl output | MAVLink position, battery, progress, people, packages, candidate and release-approval values | `mavlink_bridge.py`, UDP 14550 |
 | Autopilot input | Receive-only PX4/ArduPilot telemetry drives Cesium position, heading, battery, mode, armed and GPS state | `sitl_telemetry_adapter.py` |
 | No-autopilot integration demo | A clearly labelled mock MAVLink source verifies the receive path; it is not flight dynamics or an autopilot | `./run_all_demo.ps1 -MockSitl` |
@@ -56,7 +58,7 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **68 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
+The latest audit passed **71 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
 
 ## Work still required
 
