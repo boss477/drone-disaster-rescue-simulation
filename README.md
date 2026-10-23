@@ -9,6 +9,7 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 | Disaster image classifier | Zero-shot CLIP: flood / fire / earthquake damage / landslide / storm damage / normal | `py disaster_zero_shot.py samples/flood_street.jpg` or `py image_upload_demo.py` |
 | 3D rescue simulation | Slow drone, flooded buildings, simulated rooftop people, package inventory | `./run_rescue_simulation.ps1` |
 | Live disaster operations map | Real OpenStreetMap geography, live weather and active wildfire/flood/storm records; simulated mission origin | `./run_live_operations.ps1` |
+| Operator-controlled 3D rescue | No-key OpenStreetMap globe, optional Cesium terrain/buildings, live context, successful/aborted missions and evidence log | `./run_earth_rescue.ps1` |
 | QGroundControl telemetry (SITL-only) | Streams the simulated mission over UDP MAVLink | `./run_all_demo.ps1` |
 | Wall-crack payload (Pi / laptop) | Perception payload, needs optional `.pth` files | see further below |
 
@@ -80,6 +81,24 @@ This opens a real-world OpenStreetMap base map with live location weather and cu
 - NASA EONET event records, Open-Meteo weather and OpenStreetMap tiles can be temporarily unavailable. The page shows a timestamp/error rather than reusing an unlabelled stale result.
 - For a fully offline exhibition, use a licensed offline map-data provider or self-hosted tiles; do not bulk-download `tile.openstreetmap.org`.
 
+## Operator-controlled 3D rescue mission
+
+Start the local server with `./run_earth_rescue.ps1`, then open `http://127.0.0.1:8765/earth_rescue.html`. Select an incident or map location, review the simulated AI candidate, confirm it, and choose either the successful or aborted scenario. The drone loads, flies to one marked delivery zone and holds. A successful mission requires a separate operator release approval; the abort scenario blocks release and returns with the package. Every decision appears in a downloadable timestamped JSON evidence log. The bridge can mirror the simulated position, target-confirmation state and operator approval to QGroundControl.
+
+The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted OpenStreetMap 3D Buildings require a free Cesium ion token; paste it into the page when available. The token is kept in browser session storage and is not written to the repository. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
+
+## Recorded footage and measurable person detection
+
+Install `requirements-hardware.txt`, then run `./run_recorded_footage.ps1 path\to\video.mp4`. YOLO marks possible people, but the operator must press `c` to confirm or `x` to reject. No hardware command is sent in this mode. The program records candidate, confirmation, rejection, blocked-release and latch-status events in `mission_logs/`.
+
+For a held-out VisDrone subset converted to YOLO format, measure precision, recall, missed people, false alarms and processing speed:
+
+```powershell
+py evaluate_aerial_people.py --images path\to\images --labels path\to\labels --output aerial_people_evaluation.csv
+```
+
+Keep the evaluation images separate from training images and report the model, confidence threshold and IoU threshold with the results. VisDrone classes `0` (pedestrian) and `1` (people) are treated as one person category by default.
+
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 
 ```
@@ -110,7 +129,7 @@ messages such as "[SIM] simulated package 2 delivered".
 2. Install QGroundControl from <https://qgroundcontrol.com> (optional; any MAVLink GCS on UDP 14550 works).
 3. Start everything: `./run_all_demo.ps1` (opens the simulation and the bridge). Click **Start mission** in the browser.
 4. Open QGroundControl. It listens on UDP port 14550 by default, so **Vehicle 42** appears automatically with live position, altitude, battery and mission progress.
-   Custom values (`PEOPLE`, `DELIVERED`) are visible under *Analyze Tools > MAVLink Inspector*; status messages show in the notification area.
+   Custom values (`PEOPLE`, `DELIVERED`, `TARGET_OK`, `APPROVED`) are visible under *Analyze Tools > MAVLink Inspector*; status messages show in the notification area.
 5. Different port or a GCS on another computer? Edit `qgc.host` / `qgc.udp_port` in `mavlink_config.json`
    (in QGroundControl: *Application Settings > Comm Links* to add a UDP link on that port).
 
@@ -127,8 +146,8 @@ If the browser page is closed the bridge falls back to a built-in copy of the sa
 ## Nano servo + laptop camera prototype
 
 The hardware prototype is in `rescue_nano/rescue_nano.ino` and
-`rescue_laptop.py`. This requires an Arduino Nano, servo, GPS module, webcam,
-and a real serial port. Install the Arduino `Servo`, `SoftwareSerial`, and
+`rescue_laptop.py`. Live hardware mode requires an Arduino Nano, servo, camera,
+and a real serial port; GPS is optional. Install the Arduino `Servo`, `SoftwareSerial`, and
 `TinyGPSPlus` libraries, select Nano / ATmega328P (Old Bootloader if needed),
 upload the sketch, and use Serial Monitor at 9600 baud. Send `R` to release and
 `L` to lock. Connect the servo signal wire to Nano D6.
@@ -137,15 +156,12 @@ For the laptop side:
 
 ```powershell
 py -m pip install -r requirements-hardware.txt
-# Edit PORT = "COM3" in rescue_laptop.py first.
-py rescue_laptop.py
+py rescue_laptop.py                                      # camera, vision-only
+./run_recorded_footage.ps1 samples\your_aerial_video.mp4 # recorded footage, vision-only
+py rescue_laptop.py --port COM3 --enable-hardware-release # explicit bench-hardware mode
 ```
 
-Press `q` to quit, `r` to release manually, and `l` to lock. Automatic release
-requires a person to be detected for 15 consecutive frames. This hardware path
-was syntax-checked here but cannot be tested without the Nano, GPS, servo,
-webcam, and COM port connected. Test with the servo unloaded and propellers
-disconnected.
+After a person remains visible for 15 frames, the program creates a candidate; it does not release automatically. Press `c` to confirm or `x` to reject. Press `r` to request release, `l` to lock, and `q` to quit. A hardware release is allowed only when the candidate was confirmed, `--enable-hardware-release` was supplied, and the serial connection is open. Timestamped CSV evidence logs are written to `mission_logs/`. The hardware path cannot be verified without the Nano and servo connected. Test with the servo unloaded and propellers disconnected.
 With a real SITL running, SITL itself already reports to QGroundControl on 14550; the bridge appears as a second vehicle (id 42).
 
 ## Optional model files (`.pth`)

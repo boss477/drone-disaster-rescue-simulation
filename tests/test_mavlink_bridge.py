@@ -79,6 +79,16 @@ class TelemetryTests(unittest.TestCase):
         self.assertGreater(v["rel_alt_mm"], 0)
         self.assertTrue(0 <= v["battery_pct"] <= 100)
 
+    def test_operator_fields_are_exposed_and_release_is_gated(self):
+        mission, state = sample_state()
+        state.update(phase="unload", target_confirmed=True, operator_release_approved=False)
+        values = mb.telemetry_values(self.cfg, state, mission)
+        self.assertEqual(values["target_confirmed"], 1)
+        self.assertEqual(values["release_approved"], 0)
+        self.assertFalse(mb.payload_release_authorized(state))
+        state["operator_release_approved"] = True
+        self.assertTrue(mb.payload_release_authorized(state))
+
     def test_live_map_origin_changes_simulated_telemetry_only(self):
         mission, state = sample_state()
         state["map_origin"] = {"latitude_deg": 10.0, "longitude_deg": 76.0, "name": "Demo area"}

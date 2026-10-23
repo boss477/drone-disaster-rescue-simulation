@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Earth Rescue Flight Simulator</title>
+<link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="earth_rescue.css">
+</head>
+<body>
+<div id="globe"></div>
+<aside id="panel">
+  <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
+  <h1>Rescue mission</h1>
+  <p class="notice">REAL MAP + LIVE PUBLIC HAZARD DATA · DRONE, ROUTE, PEOPLE & PAYLOAD ARE SIMULATED</p>
+  <section class="keybox">
+    <b class="map-label">Map mode</b>
+    <small>OpenStreetMap globe works without a key. Add a free Cesium ion token later for streamed terrain and 3D buildings.</small>
+    <div class="keyrow"><input id="cesiumToken" type="password" autocomplete="off" placeholder="Optional Cesium ion token"><button id="loadCesium" class="quiet">Enable 3D</button></div>
+    <div id="earthStatus" class="status">Loading the no-key map…</div>
+  </section>
+  <section>
+    <div class="row"><h2>Active incidents</h2><button id="refresh" class="quiet">Refresh</button></div>
+    <div class="checks"><label><input id="showFire" type="checkbox" checked> Fire</label><label><input id="showFlood" type="checkbox" checked> Flood</label><label><input id="showStorm" type="checkbox" checked> Storm</label></div>
+    <p id="feedStatus" class="muted">Connecting to NASA EONET…</p>
+    <div id="eventList" class="event-list"></div>
+  </section>
+  <section>
+    <h2>Mission area</h2>
+    <div id="selection">Select an incident or click the map.</div>
+    <div id="weather" class="weather">Select a location for current weather.</div>
+    <div class="provenance" id="provenance">SOURCE: none · TIME: none · UNCERTAINTY: unknown</div>
+    <div class="package-row"><label>Packages <input id="packageCount" type="number" min="1" max="6" value="1"></label><label>Drop distance (m) <input id="routeRadius" type="number" min="100" max="2000" step="100" value="500"></label></div>
+    <label class="scenario-label">Demonstration scenario<select id="scenario"><option value="success">Successful operator-approved delivery</option><option value="abort">Aborted delivery: unsafe drop zone</option></select></label>
+    <div class="candidate" id="candidate">
+      <b>AI candidate: possible stranded person</b>
+      <span>SIMULATED detection · confidence 78% · operator review required</span>
+      <div class="buttonrow"><button id="confirmTarget" disabled>Confirm candidate</button><button id="rejectTarget" class="danger" disabled>Reject / abort</button></div>
+    </div>
+    <div class="buttonrow"><button id="start" disabled>Load &amp; launch</button><button id="pause" class="quiet" disabled>Pause</button><button id="reset" class="quiet">Reset</button></div>
+    <div class="approval" id="approval">
+      <b>Payload release authorization</b>
+      <span id="approvalText">Available only after arrival and target confirmation.</span>
+      <div class="buttonrow"><button id="approveRelease" disabled>Approve release</button><button id="abortMission" class="danger" disabled>Abort mission</button></div>
+    </div>
+    <div class="phase" id="phase">DRONE AT BASE</div>
+    <div class="inventory" id="inventory"></div>
+    <div class="metrics"><div><b id="delivered">0</b><small>packages released</small></div><div><b id="battery">100%</b><small>simulated battery</small></div></div>
+    <p id="missionStatus" class="muted">Choose a location to prepare the simulated mission.</p>
+    <div class="log-head"><h2>Mission evidence log</h2><button id="downloadLog" class="quiet" disabled>Download JSON</button></div>
+    <ol id="missionLog" class="mission-log"></ol>
+  </section>
+  <section class="weather-note"><b>Data notes</b><br>NASA EONET events and Open-Meteo weather are informational and may be delayed. Satellite detections do not define precise hazard boundaries or safe flight paths. This is not an emergency-response tool.</section>
+  <footer>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Optional 3D content: Cesium ion · Incidents: <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a> · Weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a></footer>
+</aside>
+<div id="cesiumCredit"></div>
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+<script src="earth_rescue.js"></script>
+</body>
+</html>

@@ -11,7 +11,7 @@ Set-Location $PSScriptRoot
 Write-SimulationBanner
 
 $shell = (Get-Process -Id $PID).Path
-Start-Process $shell -ArgumentList '-NoExit', '-File', "$PSScriptRoot\start_visual_sim.ps1"
+Start-Process $shell -ArgumentList '-NoExit', '-File', "$PSScriptRoot\run_earth_rescue.ps1"
 Start-Sleep -Seconds 2
 Start-Process $shell -ArgumentList '-NoExit', '-File', "$PSScriptRoot\start_mavlink_bridge.ps1"
 if ($WithSitl) {
@@ -20,7 +20,8 @@ if ($WithSitl) {
 
 Write-Host ''
 Write-Host 'Started: 3D simulation window, MAVLink bridge window.' -ForegroundColor Green
-Write-Host '1. In the browser page click "Start mission".'
-Write-Host '2. Open QGroundControl: it listens on UDP 14550 and shows "Vehicle 42" automatically.'
+Write-Host '1. Select a mission area, confirm the candidate, then launch the mission.'
+Write-Host '2. At the drop zone, approve release or run the required-abort scenario.'
+Write-Host '3. Open QGroundControl: it listens on UDP 14550 and shows "Vehicle 42" automatically.'
 Write-Host '   (No QGroundControl? Download it from https://qgroundcontrol.com - optional.)'
 Write-Host 'Close the opened windows (or press Ctrl+C in each) to stop. See the README section "QGroundControl".'

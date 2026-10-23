@@ -147,6 +147,8 @@ def telemetry_values(cfg: dict[str, Any], state: dict[str, Any], mission: dict[s
         "packages_delivered": int(state["packages_delivered"]),
         "packages_onboard": int(state["packages_onboard"]),
         "progress_percent": int(round(state["progress_percent"])),
+        "target_confirmed": int(bool(state.get("target_confirmed", False))),
+        "release_approved": int(bool(state.get("operator_release_approved", False))),
         "phase": str(state["phase"]),
         "in_flight": state["phase"] not in ("loading", "complete"),
     }
@@ -184,6 +186,8 @@ def build_messages(
         ("named_value_int", (boot_ms, _name("DELIVERED"), v["packages_delivered"])),
         ("named_value_int", (boot_ms, _name("ONBOARD"), v["packages_onboard"])),
         ("named_value_int", (boot_ms, _name("PROGRESS"), v["progress_percent"])),
+        ("named_value_int", (boot_ms, _name("TARGET_OK"), v["target_confirmed"])),
+        ("named_value_int", (boot_ms, _name("APPROVED"), v["release_approved"])),
     ]
     prev = telemetry_values(cfg, previous, mission) if previous else None
     if prev is None or prev["phase"] != v["phase"]:
@@ -198,6 +202,11 @@ def build_messages(
     if prev is not None and v["mission_seq"] > prev["mission_seq"]:
         messages.append(("mission_item_reached", (prev["mission_seq"],)))
     return messages
+
+
+def payload_release_authorized(state: dict[str, Any]) -> bool:
+    """A simulated unload may actuate an enabled bench servo only after operator approval."""
+    return state.get("phase") == "unload" and state.get("operator_release_approved") is True
 
 
 # ------------------------------------------------------------------ sources ---
@@ -394,7 +403,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 else:
                     emit(connection, messages)
                 if previous is not None and state["phase"] != previous["phase"]:
-                    if state["phase"] == "unload":
+                    if payload_release_authorized(state):
                         servo.send(b"R")
                         print("[SIM] rescue delivery -> servo RELEASE (R)")
                     elif previous["phase"] == "unload":

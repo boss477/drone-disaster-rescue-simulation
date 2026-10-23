@@ -48,6 +48,16 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("api.open-meteo.com", script)
         self.assertTrue((ROOT / "run_live_operations.ps1").is_file())
 
+    def test_operator_controlled_earth_mission_is_present(self):
+        page = (ROOT / "earth_rescue.html").read_text(encoding="utf-8")
+        script = (ROOT / "earth_rescue.js").read_text(encoding="utf-8")
+        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog"):
+            self.assertIn(f'id="{control}"', page)
+        self.assertIn("operator_release_approved", script)
+        self.assertIn("sessionStorage", script)
+        self.assertNotIn("tile.googleapis.com", script)
+        self.assertTrue((ROOT / "run_earth_rescue.ps1").is_file())
+
     def test_model_weights_not_tracked_by_git(self):
         try:
             tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True,

@@ -94,8 +94,16 @@ async function loadWeather(location) {
 
 function updateMissionLink() {
   const url = new URL('rescue_simulation.html', location.href);
-  if (selected) { url.searchParams.set('lat', selected.lat); url.searchParams.set('lon', selected.lon); url.searchParams.set('name', selected.name); }
+  const earthUrl = new URL('earth_rescue.html', location.href);
+  if (selected) {
+    for (const target of [url, earthUrl]) {
+      target.searchParams.set('lat', selected.lat);
+      target.searchParams.set('lon', selected.lon);
+      target.searchParams.set('name', selected.name);
+    }
+  }
   $('openMission').href = url.toString();
+  $('openEarthMission').href = earthUrl.toString();
 }
 
 function selectLocation(location, name = 'Map selection') {

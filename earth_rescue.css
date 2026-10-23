@@ -1,0 +1,64 @@
+:root{color-scheme:dark;font-family:Inter,"Segoe UI",system-ui,sans-serif;background:#07111c;color:#e9f3fb}
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden}
+#globe{position:absolute;inset:0;background:radial-gradient(ellipse at 60% 50%,#173047,#07111c 75%)}
+#panel{position:absolute;z-index:5;left:18px;top:18px;bottom:18px;width:min(410px,calc(100vw - 36px));overflow:auto;padding:18px;background:#091724ee;border:1px solid #284457;border-radius:14px;box-shadow:0 12px 45px #0009;backdrop-filter:blur(10px)}
+.brand{font-size:11px;letter-spacing:.18em;font-weight:900;color:#7fe2ca}
+.brand span{color:#91aec0;margin-left:5px}
+.brand+h1{font-size:24px;margin:8px 0}
+.notice{font-size:10px;letter-spacing:.06em;color:#ffd27a;line-height:1.5}
+.keybox{padding:12px;border:1px solid #355268;border-radius:9px;background:#112638}
+.map-label{display:block;font-size:12px;margin-bottom:6px}
+.keyrow,.row,.buttonrow,.checks,.package-row,.metrics,.log-head{display:flex;align-items:center;gap:8px}
+.keyrow input{min-width:0;flex:1}
+input,select{background:#07131f;color:#eaf5fc;border:1px solid #3d596b;border-radius:6px;padding:8px}
+button{border:0;border-radius:6px;padding:9px 11px;background:#65dec0;color:#05251f;font-weight:800;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+.quiet{background:#20384a;color:#d9ecf6}
+.danger{background:#61313a;color:#ffd9d9}
+.keybox small,.muted,footer{font-size:11px;line-height:1.45;color:#9bb1c0}
+.keybox small{display:block;margin:6px 0 8px}
+.status{font-size:11px;color:#8fe5ce;margin-top:8px}
+section{border-top:1px solid #263e50;margin-top:14px;padding-top:9px}
+h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
+.row,.log-head{justify-content:space-between}
+.row h2,.log-head h2{margin:3px 0}
+.checks{font-size:11px;color:#b9cbd6}
+.event-list{display:grid;gap:6px;max-height:175px;overflow:auto}
+.event{display:grid;grid-template-columns:9px 1fr;gap:8px;padding:7px;border:1px solid #253f51;border-radius:7px;background:#0d2030;text-align:left;color:#e5f2fa}
+.event:hover{border-color:#73d9c4}
+.dot{width:8px;height:8px;border-radius:50%;margin-top:4px}
+.event small{display:block;color:#94aab8;margin-top:3px;font-size:10px}
+#selection{font-size:12px;color:#d7e9f3;margin-bottom:8px}
+.weather{font-size:11px;line-height:1.5;padding:8px;border-radius:6px;background:#102536;color:#b6d3e0;margin-bottom:10px}
+.provenance{padding:7px;border-left:3px solid #67cbe8;background:#0c202f;color:#a9c8d7;font:10px/1.45 ui-monospace,Consolas,monospace;margin-bottom:9px}
+.package-row{align-items:end;font-size:10px;color:#a9bdc9}
+.package-row label{flex:1}
+.package-row input{display:block;width:100%;margin-top:5px}
+.scenario-label{display:block;font-size:10px;color:#a9bdc9;margin-top:9px}
+.scenario-label select{display:block;width:100%;margin-top:5px}
+.candidate,.approval{margin-top:10px;padding:10px;border:1px solid #365269;border-radius:8px;background:#102536}
+.candidate>b,.approval>b{display:block;font-size:11px;color:#d8edf6}
+.candidate>span,.approval>span{display:block;margin-top:4px;font-size:10px;line-height:1.4;color:#a2bac8}
+.candidate.confirmed{border-color:#65dec0}
+.candidate.rejected{border-color:#ff7669}
+.buttonrow{margin-top:10px}
+.buttonrow button{flex:1}
+.phase{font-size:11px;font-weight:900;letter-spacing:.08em;color:#75e3c5;margin-top:13px}
+.inventory{display:flex;gap:5px;min-height:13px;margin:8px 0}
+.pack{width:16px;height:12px;border-radius:3px;background:#ffc45c}
+.pack.released{background:#65dec0}
+.metrics{margin:10px 0}
+.metrics div{flex:1;background:#102536;padding:8px;border-radius:7px}
+.metrics b{display:block;font-size:17px}
+.metrics small{font-size:10px;color:#9bb1c0}
+.mission-log{max-height:145px;overflow:auto;margin:8px 0 0;padding-left:20px;font-size:10px;color:#aac1cd}
+.mission-log li{display:grid;grid-template-columns:62px 1fr;gap:2px 7px;padding:5px 0;border-bottom:1px solid #233c4d}
+.mission-log time{color:#7f9baa}
+.mission-log b{color:#83e0c8}
+.mission-log span{grid-column:1/3;color:#aabcc7;line-height:1.35}
+.weather-note{font-size:10px;line-height:1.45;color:#9bb1c0}
+footer{padding:12px 0 4px}
+a{color:#9ee7ff}
+#cesiumCredit{position:absolute;z-index:4;right:6px;bottom:3px;pointer-events:none}
+@media(max-width:650px){#panel{left:8px;top:8px;bottom:8px;width:min(365px,calc(100vw - 16px));padding:13px}.event-list{max-height:120px}}

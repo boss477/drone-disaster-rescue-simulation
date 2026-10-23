@@ -102,7 +102,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Serve the 3D rescue simulation locally")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--no-browser", action="store_true")
-    parser.add_argument("--page", choices=("rescue_simulation.html", "live_operations.html"), default="rescue_simulation.html",
+    parser.add_argument("--page", choices=("rescue_simulation.html", "live_operations.html", "earth_rescue.html"), default="rescue_simulation.html",
                         help="repository page to open (default: rescue_simulation.html)")
     args = parser.parse_args()
     try:

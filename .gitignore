@@ -2,9 +2,11 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 inspection_reports/
+mission_logs/
 .venv/
 venv/
 zero_shot_predictions.csv
+aerial_people_evaluation.csv
 
 # Model weights and caches stay out of Git (see models/README.md)
 models/hf_cache/
