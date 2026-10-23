@@ -62,13 +62,11 @@ The latest audit passed **71 tests**. The mission-replay path was also smoke-tes
 
 ## Work still required
 
-### 1. Real AI measurements — blocked on a dataset
+### 1. Real AI measurements — person detection measured, flood imagery still open
 
-- Obtain a licensed held-out aerial-person set, preferably a VisDrone validation subset converted to YOLO format.
-- Keep evaluation data separate from any training/fine-tuning data.
-- Run `evaluate_aerial_people.py` and publish precision, recall, false positives, missed people and FPS.
-- Add representative flood imagery (FloodNet is suitable) if flood segmentation is required. CLIP currently classifies the overall scene; it does not draw flood boundaries.
-- Record dataset version, license, split and preprocessing in the results.
+- **Done (24 October 2026):** stock `yolov8n` was evaluated on the held-out VisDrone2019-DET validation split (548 images, 13,969 people). Result: **recall 7.4% at 640 px and 21.6% at 1280 px, precision about 75-79%**. It is not reliable for finding people from the air and must remain an operator-confirmed candidate generator. Full details, provenance and limits: `evaluation_results/README.md`.
+- Still to do: fine-tune on VisDrone **train** and re-evaluate on this untouched validation split; try tiled inference.
+- Still to do: add representative flood imagery (FloodNet) and measure the CLIP scene classifier on labelled images. CLIP currently classifies the overall scene; it does not draw flood boundaries and its accuracy has not been measured.
 
 ### 2. Full autopilot simulation — blocked on supported SITL
 

@@ -1,0 +1,15 @@
+{
+  "images": 548,
+  "true_positive": 1039,
+  "false_positive": 355,
+  "false_negative": 12930,
+  "precision": 0.7453371592539455,
+  "recall": 0.07437898203164149,
+  "seconds": 157.96717350010294,
+  "frames_per_second": 3.4690751746573656,
+  "iou_threshold": 0.5,
+  "confidence_threshold": 0.25,
+  "image_size": 640,
+  "model": "yolov8n.pt",
+  "csv": "evaluation_results/visdrone_val_yolov8n_640.csv"
+}

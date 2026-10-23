@@ -26,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--truth-classes", default="0,1", help="comma-separated YOLO ground-truth classes")
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--iou", type=float, default=0.5)
+    parser.add_argument("--imgsz", type=int, default=640, help="YOLO inference size (small aerial people need larger values)")
     parser.add_argument("--output", type=Path, default=Path("aerial_people_evaluation.csv"))
     return parser.parse_args()
 
@@ -67,7 +68,7 @@ def main() -> int:
             continue
         height, width = frame.shape[:2]
         truth = read_yolo_boxes(args.labels / f"{image_path.stem}.txt", width, height, classes)
-        result = model(frame, classes=[0], conf=args.confidence, verbose=False)[0]
+        result = model(frame, classes=[0], conf=args.confidence, imgsz=args.imgsz, verbose=False)[0]
         predictions = [tuple(map(float, box)) for box in result.boxes.xyxy.cpu().tolist()]
         metrics = match_detections(predictions, truth, args.iou)
         totals = DetectionMetrics(totals.true_positive + metrics.true_positive,
@@ -92,6 +93,8 @@ def main() -> int:
         "frames_per_second": len(rows) / elapsed if elapsed else 0.0,
         "iou_threshold": args.iou,
         "confidence_threshold": args.confidence,
+        "image_size": args.imgsz,
+        "model": args.model,
         "csv": str(args.output),
     }
     print(json.dumps(summary, indent=2))
