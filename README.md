@@ -91,6 +91,8 @@ The **Aircraft position source** selector has two modes. The default scripted mo
 
 The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted OpenStreetMap 3D Buildings require a free Cesium ion token; paste it into the page when available. The token is kept in browser session storage and is not written to the repository. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
 
+After enabling Cesium 3D, use the preset buttons for an angled **Vancouver city + mountains**, **Dubai skyline**, or **Everest mountains** view. These are visualization presets; building and terrain detail depends on streamed Cesium coverage.
+
 ## Recorded footage and measurable person detection
 
 Install `requirements-hardware.txt`, then run `./run_recorded_footage.ps1 path\to\video.mp4`. YOLO marks possible people, but the operator must press `c` to confirm or `x` to reject. No hardware command is sent in this mode. The program records candidate, confirmation, rejection, blocked-release and latch-status events in `mission_logs/`.

@@ -60,6 +60,8 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("/api/autopilot", script)
         self.assertIn("samples.push", script)
         self.assertIn("startReplay", script)
+        self.assertIn('data-preset="vancouver"', page)
+        self.assertIn("flyToPreset", script)
         self.assertTrue((ROOT / "run_earth_rescue.ps1").is_file())
 
     def test_model_weights_not_tracked_by_git(self):

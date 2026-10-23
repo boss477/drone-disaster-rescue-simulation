@@ -19,6 +19,9 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .keybox small,.muted,footer{font-size:11px;line-height:1.45;color:#9bb1c0}
 .keybox small{display:block;margin:6px 0 8px}
 .status{font-size:11px;color:#8fe5ce;margin-top:8px}
+.preset-title{margin-top:11px;font-size:9px;font-weight:900;letter-spacing:.12em;color:#8ea7b7}
+.preset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
+.preset-grid button{padding:7px 4px;font-size:9px}
 section{border-top:1px solid #263e50;margin-top:14px;padding-top:9px}
 h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 .row,.log-head{justify-content:space-between}

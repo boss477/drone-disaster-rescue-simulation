@@ -8,6 +8,20 @@ const hazardStyle = {
   storm: { color: '#c18bff', title: 'Severe storms' },
 };
 const categoryKinds = { Wildfires: 'fire', Floods: 'flood', 'Severe Storms': 'storm' };
+const viewPresets = {
+  vancouver: {
+    name: 'Vancouver city and Coast Mountains', lat: 49.2827, lon: -123.1207,
+    camera: { lat: 49.235, lon: -123.185, height: 3200, heading: 0.72, pitch: -0.3 },
+  },
+  dubai: {
+    name: 'Downtown Dubai skyline', lat: 25.1972, lon: 55.2744,
+    camera: { lat: 25.175, lon: 55.245, height: 1700, heading: 0.8, pitch: -0.28 },
+  },
+  everest: {
+    name: 'Mount Everest terrain', lat: 27.9881, lon: 86.9250,
+    camera: { lat: 27.91, lon: 86.82, height: 9200, heading: 0.72, pitch: -0.18 },
+  },
+};
 
 let viewer = null;
 let selected = null;
@@ -324,6 +338,19 @@ function setLocation(lat, lon, name, source, uncertainty) {
   logEvent('AREA_SELECTED', `${source}: ${name}; ${lat.toFixed(5)}, ${lon.toFixed(5)}; uncertainty ${uncertainty}`);
 }
 
+function flyToPreset(key) {
+  const preset = viewPresets[key];
+  if (!preset || !viewer || running) return;
+  setLocation(preset.lat, preset.lon, preset.name, '3D view preset', 'visualization only');
+  const camera = preset.camera;
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(camera.lon, camera.lat, camera.height),
+    orientation: { heading: camera.heading, pitch: camera.pitch, roll: 0 },
+    duration: 3.2,
+  });
+  $('earthStatus').textContent = `${preset.name}: angled 3D view. Buildings and terrain detail depend on Cesium coverage.`;
+}
+
 function clearMissionEntities() {
   if (!viewer) return;
   if (drone) viewer.entities.remove(drone);
@@ -626,6 +653,9 @@ $('loadCesium').onclick = () => {
   sessionStorage.setItem('rescueCesiumToken', token);
   initGlobe(token);
 };
+document.querySelectorAll('[data-preset]').forEach(button => {
+  button.onclick = () => flyToPreset(button.dataset.preset);
+});
 ['showFire', 'showFlood', 'showStorm'].forEach(id => $(id).onchange = renderEvents);
 $('refresh').onclick = refreshEvents;
 $('confirmTarget').onclick = () => {
