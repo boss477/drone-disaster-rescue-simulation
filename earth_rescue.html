@@ -31,6 +31,8 @@
     <div id="weather" class="weather">Select a location for current weather.</div>
     <div class="provenance" id="provenance">SOURCE: none · TIME: none · UNCERTAINTY: unknown</div>
     <div class="package-row"><label>Packages <input id="packageCount" type="number" min="1" max="6" value="1"></label><label>Drop distance (m) <input id="routeRadius" type="number" min="100" max="2000" step="100" value="500"></label></div>
+    <label class="scenario-label">Aircraft position source<select id="flightSource"><option value="scripted">Scripted demonstration path</option><option value="sitl">Follow PX4 / ArduPilot SITL telemetry</option></select></label>
+    <div id="sitlStatus" class="status">SITL feed not selected.</div>
     <label class="scenario-label">Demonstration scenario<select id="scenario"><option value="success">Successful operator-approved delivery</option><option value="abort">Aborted delivery: unsafe drop zone</option></select></label>
     <div class="candidate" id="candidate">
       <b>AI candidate: possible stranded person</b>
@@ -45,7 +47,7 @@
     </div>
     <div class="phase" id="phase">DRONE AT BASE</div>
     <div class="inventory" id="inventory"></div>
-    <div class="metrics"><div><b id="delivered">0</b><small>packages released</small></div><div><b id="battery">100%</b><small>simulated battery</small></div></div>
+    <div class="metrics"><div><b id="delivered">0</b><small>packages released</small></div><div><b id="battery">100%</b><small id="batteryLabel">simulated battery</small></div></div>
     <p id="missionStatus" class="muted">Choose a location to prepare the simulated mission.</p>
     <div class="log-head"><h2>Mission evidence log</h2><button id="downloadLog" class="quiet" disabled>Download JSON</button></div>
     <ol id="missionLog" class="mission-log"></ol>

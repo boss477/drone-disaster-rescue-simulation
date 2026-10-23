@@ -6,6 +6,8 @@ Why a server? Browsers block ES-module imports (the bundled Three.js runtime)
 from ``file://`` pages, so the page must be served over http. The server binds to
 127.0.0.1 only, serves files from this repository, and also relays the live
 simulation state (POST/GET ``/api/state``) so the MAVLink bridge can read it.
+An optional SITL adapter can publish autopilot telemetry at ``/api/autopilot``;
+the Cesium page reads that endpoint when "Follow SITL telemetry" is selected.
 """
 
 from __future__ import annotations
@@ -48,9 +50,11 @@ class SimState:
 
 class Handler(SimpleHTTPRequestHandler):
     sim_state = SimState()
+    autopilot_state = SimState()
 
-    def __init__(self, *args, sim_state: SimState, **kwargs):
+    def __init__(self, *args, sim_state: SimState, autopilot_state: SimState, **kwargs):
         self.sim_state = sim_state
+        self.autopilot_state = autopilot_state
         super().__init__(*args, directory=str(PROJECT_DIR), **kwargs)
 
     def _json(self, payload: dict, status: int = 200) -> None:
@@ -62,17 +66,28 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def copyfile(self, source, outputfile) -> None:
+        """Ignore clients closing early (common in browser/tests probing assets)."""
+        try:
+            super().copyfile(source, outputfile)
+        except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+            pass
+
     def do_GET(self) -> None:
         path = self.path.split("?")[0]
         if path == "/api/state":
             self._json(self.sim_state.get())
+        elif path == "/api/autopilot":
+            self._json(self.autopilot_state.get())
         elif path.split("/")[1:2] and path.split("/")[1] in BLOCKED_TOP_LEVEL:
             self._json({"error": "not found"}, 404)
         else:
             super().do_GET()
 
     def do_POST(self) -> None:
-        if self.path.split("?")[0] != "/api/state":
+        path = self.path.split("?")[0]
+        stores = {"/api/state": self.sim_state, "/api/autopilot": self.autopilot_state}
+        if path not in stores:
             self._json({"error": "not found"}, 404)
             return
         try:
@@ -85,16 +100,18 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             self._json({"error": "invalid state"}, 400)
             return
-        self.sim_state.set(state)
+        stores[path].set(state)
         self._json({"ok": True})
 
     def log_message(self, fmt: str, *args) -> None:  # keep the console quiet
-        if "/api/state" not in str(args[0] if args else ""):
+        if not any(path in str(args[0] if args else "") for path in ("/api/state", "/api/autopilot")):
             super().log_message(fmt, *args)
 
 
-def make_server(port: int = DEFAULT_PORT, sim_state: SimState | None = None) -> ThreadingHTTPServer:
-    handler = partial(Handler, sim_state=sim_state or SimState())
+def make_server(port: int = DEFAULT_PORT, sim_state: SimState | None = None,
+                autopilot_state: SimState | None = None) -> ThreadingHTTPServer:
+    handler = partial(Handler, sim_state=sim_state or SimState(),
+                      autopilot_state=autopilot_state or SimState())
     return ThreadingHTTPServer(("127.0.0.1", port), handler)
 
 

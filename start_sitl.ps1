@@ -47,6 +47,6 @@ else {
     $dir = $env:ARDUPILOT_DIR
     if (-not $dir) { Show-Help; exit 1 }
     if ($dir -notmatch '^~?/[A-Za-z0-9._/-]+$') { throw 'ARDUPILOT_DIR must be a simple WSL path without spaces.' }
-    Write-Host "Starting ArduCopter SITL from $dir (WSL), output to QGroundControl on UDP 14550. Stop with Ctrl+C."
-    wsl -e bash -lc "cd $dir && python3 Tools/autotest/sim_vehicle.py -v ArduCopter --out udp:127.0.0.1:14550"
+    Write-Host "Starting ArduCopter SITL from $dir (WSL), output to QGroundControl on UDP 14550 and dashboard adapter on 14541. Stop with Ctrl+C."
+    wsl -e bash -lc "cd $dir && python3 Tools/autotest/sim_vehicle.py -v ArduCopter --out udp:127.0.0.1:14550 --out udp:127.0.0.1:14541"
 }

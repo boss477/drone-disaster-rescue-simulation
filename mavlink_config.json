@@ -25,5 +25,10 @@
     "enabled": false,
     "endpoint": "udpout:127.0.0.1:14540",
     "takeoff_altitude_m": 9
+  },
+  "sitl_telemetry": {
+    "endpoint": "udpin:0.0.0.0:14540",
+    "server_url": "http://127.0.0.1:8765/api/autopilot",
+    "update_rate_hz": 5
   }
 }

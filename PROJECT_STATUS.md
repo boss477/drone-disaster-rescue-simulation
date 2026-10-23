@@ -11,6 +11,7 @@ This file separates demonstrated behavior from planned integrations.
 - Recorded-video or camera person candidates with CSV evidence logs and no automatic payload release.
 - Held-out aerial-person evaluation for precision, recall, false positives, misses, and throughput.
 - Telemetry-only MAVLink output for QGroundControl, including candidate and approval flags.
+- Receive-only PX4/ArduPilot telemetry input for SITL-driven Cesium position, heading, battery, mode, armed state, and GPS status.
 - Bench-servo release gate requiring candidate confirmation, explicit hardware enablement, and an open serial link.
 
 ## Waiting for user-provided resources
@@ -22,7 +23,7 @@ This file separates demonstrated behavior from planned integrations.
 ## External software still required
 
 - PX4 SITL or ArduPilot SITL. The current Ubuntu WSL installation is 26.04; the current PX4 documentation lists Ubuntu 22.04 and 24.04 as supported and says 26.04 is not yet supported.
-- QGroundControl can already view the project's generated telemetry; closed-loop autopilot-driven Cesium movement is not yet demonstrated.
+- QGroundControl can already view the project's generated telemetry. The SITL-to-Cesium path is implemented but cannot be end-to-end demonstrated until a supported SITL installation is available.
 
 ## Hardware evidence still required
 

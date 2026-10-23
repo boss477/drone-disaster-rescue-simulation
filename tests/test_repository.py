@@ -37,7 +37,8 @@ class RepositoryTests(unittest.TestCase):
     def test_required_files_exist(self):
         for name in ("setup.ps1", "run_all_demo.ps1", "requirements-demo.txt", "requirements-mavlink.txt",
                      "mavlink_config.json", "start_visual_sim.ps1", "start_mavlink_bridge.ps1",
-                     "start_sitl.ps1", "models/README.md"):
+                     "start_sitl.ps1", "start_sitl_telemetry.ps1", "sitl_telemetry_adapter.py",
+                     "models/README.md"):
             self.assertTrue((ROOT / name).is_file(), name)
 
     def test_live_operations_map_is_present_and_labelled(self):
@@ -51,11 +52,12 @@ class RepositoryTests(unittest.TestCase):
     def test_operator_controlled_earth_mission_is_present(self):
         page = (ROOT / "earth_rescue.html").read_text(encoding="utf-8")
         script = (ROOT / "earth_rescue.js").read_text(encoding="utf-8")
-        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog"):
+        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog", "flightSource"):
             self.assertIn(f'id="{control}"', page)
         self.assertIn("operator_release_approved", script)
         self.assertIn("sessionStorage", script)
         self.assertNotIn("tile.googleapis.com", script)
+        self.assertIn("/api/autopilot", script)
         self.assertTrue((ROOT / "run_earth_rescue.ps1").is_file())
 
     def test_model_weights_not_tracked_by_git(self):

@@ -26,6 +26,47 @@ let lastStateSent = 0;
 let missionClock = 0;
 let evidence = [];
 let targetConfirmed = false;
+let autopilotConnected = false;
+let autopilotTelemetry = null;
+
+function followsSITL() {
+  return $('flightSource').value === 'sitl';
+}
+
+function refreshStartAvailability() {
+  $('start').disabled = !selected || !targetConfirmed || running || (followsSITL() && !autopilotConnected);
+}
+
+async function refreshAutopilot() {
+  try {
+    const response = await fetch('/api/autopilot', { cache: 'no-store' });
+    const payload = await response.json();
+    autopilotConnected = Boolean(payload.connected && payload.state
+      && Number.isFinite(payload.state.latitude_deg) && Number.isFinite(payload.state.longitude_deg));
+    autopilotTelemetry = autopilotConnected ? payload.state : null;
+  } catch (_) {
+    autopilotConnected = false;
+    autopilotTelemetry = null;
+  }
+  if (followsSITL()) {
+    const state = autopilotTelemetry;
+    $('sitlStatus').textContent = state
+      ? `SITL LIVE · ${state.flight_mode || 'UNKNOWN'} · ${state.armed ? 'ARMED' : 'DISARMED'} · GPS fix ${state.gps_fix_type ?? '—'}`
+      : 'Waiting for the receive-only SITL telemetry adapter…';
+  } else {
+    $('sitlStatus').textContent = autopilotConnected ? 'SITL feed available; scripted path selected.' : 'SITL feed not selected.';
+  }
+  refreshStartAvailability();
+}
+
+function autopilotPosition() {
+  if (!followsSITL() || !autopilotTelemetry) return null;
+  return {
+    lat: autopilotTelemetry.latitude_deg,
+    lon: autopilotTelemetry.longitude_deg,
+    alt: Math.max(0, autopilotTelemetry.relative_altitude_m ?? 0),
+  };
+}
 
 function cesiumReady() {
   if (!window.Cesium) {
@@ -307,7 +348,7 @@ function setMissionPhase(phase, detail) {
 }
 
 function buildMission() {
-  if (!viewer || !selected || !targetConfirmed) return;
+  if (!viewer || !selected || !targetConfirmed || (followsSITL() && !autopilotConnected)) return;
   clearMissionEntities();
   const target = targetFor();
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
@@ -321,6 +362,7 @@ function buildMission() {
     phaseStart: 0,
     returnFrom: target,
     scenario: $('scenario').value,
+    flightSource: $('flightSource').value,
   };
   routeEntities.push(viewer.entities.add({
     polyline: {
@@ -356,12 +398,19 @@ function buildMission() {
   $('phase').textContent = 'LOADING PACKAGES';
   $('missionStatus').textContent = `Loading ${packageCount} simulated package(s).`;
   renderInventory(packageCount, 0);
-  logEvent('MISSION_STARTED', `${mission.scenario} scenario; ${packageCount} simulated package(s)`);
+  logEvent('MISSION_STARTED', `${mission.scenario} scenario; ${packageCount} simulated package(s); position source ${mission.flightSource}`);
   requestAnimationFrame(animateMission);
 }
 
 function interpolate(from, to, fraction) {
   return { lat: from.lat + (to.lat - from.lat) * fraction, lon: from.lon + (to.lon - from.lon) * fraction };
+}
+
+function groundDistanceMeters(from, to) {
+  const meanLatitude = (from.lat + to.lat) * Math.PI / 360;
+  const dx = (from.lon - to.lon) * 111320 * Math.cos(meanLatitude);
+  const dz = (from.lat - to.lat) * 111320;
+  return Math.hypot(dx, dz);
 }
 
 function finishMission(outcome) {
@@ -397,6 +446,19 @@ function missionPosition() {
     return { ...selected, alt: 10 };
   }
   if (mission.phase === 'outbound') {
+    const livePosition = autopilotPosition();
+    if (followsSITL()) {
+      if (livePosition && groundDistanceMeters(livePosition, mission.target) <= 30) {
+        setMissionPhase('awaiting_approval', 'SITL vehicle is within 30 m of the drop zone. Operator decision required.');
+        if (mission.scenario === 'success') {
+          $('approveRelease').disabled = false;
+          $('approvalText').textContent = 'Target confirmed. Review the zone, then approve or abort.';
+        } else {
+          $('approvalText').textContent = 'Unsafe drop-zone condition injected. Abort is required.';
+        }
+      }
+      return { ...selected, alt: 10 };
+    }
     const fraction = Math.min(elapsed / 10, 1);
     if (fraction >= 1) {
       setMissionPhase('awaiting_approval', 'Holding over the drop zone. Operator decision required.');
@@ -420,6 +482,13 @@ function missionPosition() {
     return { ...mission.target, alt: 35 };
   }
   if (mission.phase === 'returning' || mission.phase === 'aborted_return') {
+    const livePosition = autopilotPosition();
+    if (followsSITL()) {
+      if (livePosition && groundDistanceMeters(livePosition, selected) <= 30 && livePosition.alt <= 15) {
+        finishMission(mission.outcome === 'aborted' ? 'aborted' : 'delivered');
+      }
+      return { ...selected, alt: 10 };
+    }
     const fraction = Math.min(elapsed / 10, 1);
     const position = interpolate(mission.returnFrom || mission.target, selected, fraction);
     if (fraction >= 1) finishMission(mission.outcome === 'aborted' ? 'aborted' : 'delivered');
@@ -444,15 +513,16 @@ function postState(now, position) {
   const telemetryPhase = mission.phase === 'releasing' ? 'unload' : mission.phase;
   const sequence = mission.phase === 'loading' ? 0 : mission.phase === 'outbound' ? 1 : mission.phase === 'awaiting_approval' ? 2 : mission.phase === 'releasing' ? 3 : mission.phase === 'complete' ? 5 : 4;
   const state = {
-    source: 'earth-simulation',
+    source: followsSITL() ? 'sitl-mavlink-with-operator-workflow' : 'earth-simulation',
     phase: telemetryPhase,
     t: missionClock,
     total_seconds: 26,
     progress_percent: progress,
     position: { x: dx, y: position.alt, z: dz },
     velocity: { x: 0, y: 0, z: 0 },
-    heading_deg: 0,
-    battery_percent: Math.max(0, 100 - missionClock * 0.35),
+    heading_deg: followsSITL() ? (autopilotTelemetry?.heading_deg ?? 0) : 0,
+    battery_percent: followsSITL() && autopilotTelemetry?.battery_percent != null
+      ? autopilotTelemetry.battery_percent : Math.max(0, 100 - missionClock * 0.35),
     packages_loaded: mission.packageCount,
     packages_onboard: mission.packageCount - mission.delivered,
     packages_delivered: mission.delivered,
@@ -476,9 +546,14 @@ function animateMission(now) {
   if (!running || !mission || !drone) return;
   if (!paused) missionClock += (now - lastFrame) / 1000;
   lastFrame = now;
-  const position = missionPosition();
+  const scriptedPosition = missionPosition();
+  const position = autopilotPosition() || scriptedPosition;
   mission.current = position;
   drone.position = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.alt);
+  if (followsSITL() && autopilotTelemetry?.heading_deg != null) {
+    const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(autopilotTelemetry.heading_deg), 0, 0);
+    drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
+  }
   packages.forEach((item, index) => {
     if (index < mission.delivered) {
       item.position = Cesium.Cartesian3.fromDegrees(mission.target.lon + 0.000025 * index, mission.target.lat, 3);
@@ -491,7 +566,10 @@ function animateMission(now) {
     }
   });
   $('delivered').textContent = mission.delivered;
-  $('battery').textContent = `${Math.max(0, 100 - missionClock * 0.35).toFixed(0)}%`;
+  const battery = followsSITL() && autopilotTelemetry?.battery_percent != null
+    ? autopilotTelemetry.battery_percent : Math.max(0, 100 - missionClock * 0.35);
+  $('battery').textContent = `${Number(battery).toFixed(0)}%`;
+  $('batteryLabel').textContent = followsSITL() ? 'SITL battery' : 'simulated battery';
   renderInventory(mission.packageCount, mission.delivered);
   postState(now, position);
   if (running) requestAnimationFrame(animateMission);
@@ -512,7 +590,7 @@ function resetMission() {
   $('abortMission').disabled = true;
   $('approveRelease').disabled = true;
   $('approvalText').textContent = 'Available only after arrival and target confirmation.';
-  $('start').disabled = !selected || !targetConfirmed;
+  refreshStartAvailability();
   renderInventory(0, 0);
   logEvent('MISSION_RESET', 'Operator reset the simulation.');
 }
@@ -533,7 +611,7 @@ $('confirmTarget').onclick = () => {
   targetConfirmed = true;
   $('candidate').classList.add('confirmed');
   $('candidate').classList.remove('rejected');
-  $('start').disabled = false;
+  refreshStartAvailability();
   if (targetMarker) targetMarker.label.text = 'OPERATOR-CONFIRMED · SIMULATED';
   logEvent('TARGET_CONFIRMED', 'Operator confirmed the simulated AI candidate and manually placed drop zone.');
 };
@@ -546,6 +624,20 @@ $('rejectTarget').onclick = () => {
   logEvent('TARGET_REJECTED', 'Operator rejected the simulated AI candidate; launch blocked.');
 };
 $('start').onclick = buildMission;
+$('flightSource').onchange = () => {
+  $('batteryLabel').textContent = followsSITL() ? 'SITL battery' : 'simulated battery';
+  refreshAutopilot();
+  if (followsSITL() && autopilotTelemetry && !running) {
+    setLocation(
+      autopilotTelemetry.latitude_deg,
+      autopilotTelemetry.longitude_deg,
+      'SITL vehicle home',
+      'receive-only MAVLink telemetry',
+      'reported GPS position',
+    );
+  }
+  logEvent('POSITION_SOURCE_SELECTED', followsSITL() ? 'SITL telemetry selected; launch waits for live data.' : 'Scripted demonstration path selected.');
+};
 $('pause').onclick = () => {
   if (!running) return;
   paused = !paused;
@@ -578,6 +670,8 @@ $('cesiumToken').value = rememberedToken;
 initGlobe(rememberedToken);
 refreshEvents();
 setInterval(refreshEvents, 10 * 60 * 1000);
+refreshAutopilot();
+setInterval(refreshAutopilot, 400);
 
 const params = new URLSearchParams(location.search);
 const queryLat = Number(params.get('lat'));

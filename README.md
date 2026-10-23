@@ -85,6 +85,8 @@ This opens a real-world OpenStreetMap base map with live location weather and cu
 
 Start the local server with `./run_earth_rescue.ps1`, then open `http://127.0.0.1:8765/earth_rescue.html`. Select an incident or map location, review the simulated AI candidate, confirm it, and choose either the successful or aborted scenario. The drone loads, flies to one marked delivery zone and holds. A successful mission requires a separate operator release approval; the abort scenario blocks release and returns with the package. Every decision appears in a downloadable timestamped JSON evidence log. The bridge can mirror the simulated position, target-confirmation state and operator approval to QGroundControl.
 
+The **Aircraft position source** selector has two modes. The default scripted mode is self-contained. **Follow PX4 / ArduPilot SITL telemetry** reads latitude, longitude, relative altitude, heading, battery, flight mode, armed state and GPS quality from `/api/autopilot`; launch stays blocked until a live simulator feed exists. Selecting it uses the current SITL position as mission home. Fly the virtual vehicle using QGroundControl: arrival is recognized within 30 m of the drop zone, and return completes within 30 m of home below 15 m relative altitude. The mission decision workflow remains operator-controlled and simulated; this adapter sends no flight commands.
+
 The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted OpenStreetMap 3D Buildings require a free Cesium ion token; paste it into the page when available. The token is kept in browser session storage and is not written to the repository. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
 
 ## Recorded footage and measurable person detection
@@ -139,7 +141,10 @@ Start the pieces separately if you prefer:
 ./start_visual_sim.ps1             # a. 3D visual simulation
 ./start_mavlink_bridge.ps1         # b. telemetry bridge (-DryRun prints without sockets, -Standalone ignores the browser)
 ./start_sitl.ps1                   # c. PX4/ArduPilot SITL, only if you installed it (WSL2); set PX4_AUTOPILOT_DIR or ARDUPILOT_DIR
+./start_sitl_telemetry.ps1         # d. receive-only SITL -> Cesium position adapter
 ```
+
+For the integrated path, run `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` (or `ardupilot`). PX4's normal offboard stream is received on UDP 14540; the ArduPilot launcher adds a second output on UDP 14541. QGroundControl continues to use UDP 14550. The adapter never sends commands to the autopilot. WSL networking differs by Windows version, so `-Endpoint` on `start_sitl_telemetry.ps1` can override the receive address.
 
 If the browser page is closed the bridge falls back to a built-in copy of the same mission so QGroundControl still shows a flight.
 
