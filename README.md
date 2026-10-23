@@ -146,6 +146,8 @@ Start the pieces separately if you prefer:
 
 For the integrated path, run `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` (or `ardupilot`). PX4's normal offboard stream is received on UDP 14540; the ArduPilot launcher adds a second output on UDP 14541. QGroundControl continues to use UDP 14550. The adapter never sends commands to the autopilot. WSL networking differs by Windows version, so `-Endpoint` on `start_sitl_telemetry.ps1` can override the receive address.
 
+To verify the full MAVLink receive path without installing an autopilot, run `./run_all_demo.ps1 -MockSitl`. The clearly labelled mock source sends a repeating takeoff → 500 m northbound → hold → return → land telemetry sequence on UDP 14540. It is useful for the presentation and integration tests, but it is not flight dynamics, PX4, or ArduPilot.
+
 If the browser page is closed the bridge falls back to a built-in copy of the same mission so QGroundControl still shows a flight.
 
 ## Nano servo + laptop camera prototype

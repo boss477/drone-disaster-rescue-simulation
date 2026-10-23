@@ -38,7 +38,7 @@ class RepositoryTests(unittest.TestCase):
         for name in ("setup.ps1", "run_all_demo.ps1", "requirements-demo.txt", "requirements-mavlink.txt",
                      "mavlink_config.json", "start_visual_sim.ps1", "start_mavlink_bridge.ps1",
                      "start_sitl.ps1", "start_sitl_telemetry.ps1", "sitl_telemetry_adapter.py",
-                     "models/README.md"):
+                     "start_mock_sitl.ps1", "mock_sitl_vehicle.py", "models/README.md"):
             self.assertTrue((ROOT / name).is_file(), name)
 
     def test_live_operations_map_is_present_and_labelled(self):

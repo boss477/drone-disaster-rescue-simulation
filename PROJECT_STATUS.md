@@ -12,6 +12,7 @@ This file separates demonstrated behavior from planned integrations.
 - Held-out aerial-person evaluation for precision, recall, false positives, misses, and throughput.
 - Telemetry-only MAVLink output for QGroundControl, including candidate and approval flags.
 - Receive-only PX4/ArduPilot telemetry input for SITL-driven Cesium position, heading, battery, mode, armed state, and GPS status.
+- A telemetry-only mock vehicle exercises the complete MAVLink receive path when a full autopilot is unavailable; it is explicitly not presented as flight dynamics or SITL.
 - Bench-servo release gate requiring candidate confirmation, explicit hardware enablement, and an open serial link.
 
 ## Waiting for user-provided resources
