@@ -2,7 +2,7 @@
 
 > **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
-**Project status:** the no-key software demo, operator workflow, mission logs/replay, QGroundControl output and receive-only SITL visualization are implemented. Real AI metrics, full PX4/ArduPilot validation and 100 physical latch cycles remain. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
+**Project status:** the no-key software demo, operator workflow, mission logs/replay, measured pretrained AI models, QGroundControl output, and real PX4/Gazebo SITL validation are implemented. OpenDroneMap output is being completed on a separate branch; 100 physical latch cycles still require hardware evidence. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
 
 This repository intentionally integrates established projects instead of rebuilding them. See [UPSTREAM_INTEGRATIONS.md](UPSTREAM_INTEGRATIONS.md) for the PX4, QGroundControl, Ultralytics and OpenDroneMap boundaries plus the exact teammate handoff.
 
@@ -196,11 +196,13 @@ Start the pieces separately if you prefer:
 ```powershell
 ./start_visual_sim.ps1             # a. 3D visual simulation
 ./start_mavlink_bridge.ps1         # b. telemetry bridge (-DryRun prints without sockets, -Standalone ignores the browser)
-./start_sitl.ps1                   # c. PX4/ArduPilot SITL, only if you installed it (WSL2); set PX4_AUTOPILOT_DIR or ARDUPILOT_DIR
+./start_sitl.ps1                   # c. PX4/ArduPilot SITL in supported Ubuntu WSL2; set PX4_AUTOPILOT_DIR or ARDUPILOT_DIR
 ./start_sitl_telemetry.ps1         # d. receive-only SITL -> Cesium position adapter
 ```
 
-For the integrated path, run `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` (or `ardupilot`). PX4's normal offboard stream is received on UDP 14540; the ArduPilot launcher adds a second output on UDP 14541. QGroundControl continues to use UDP 14550. The adapter never sends commands to the autopilot. WSL networking differs by Windows version, so `-Endpoint` on `start_sitl_telemetry.ps1` can override the receive address.
+For the integrated path, run `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` (or `ardupilot`). The launcher prefers `Ubuntu-24.04-PX4`, then another installed Ubuntu 24.04/22.04 distribution; set `SITL_WSL_DISTRO` or pass `-Distro` to override it. It detects the Windows host address and routes PX4 telemetry to the dashboard on UDP 14540 and QGroundControl on UDP 14550. ArduPilot uses UDP 14541 for the dashboard. Pass `-NoWindowsUdpForward` only when the consumer runs inside WSL. The adapter never sends commands to the autopilot.
+
+The verified local configuration is PX4 v1.17.0 with Gazebo Harmonic's X500 on Ubuntu 24.04 WSL. Measured takeoff/RTL, geofence, low-battery, GPS-loss, dashboard success/abort and QGroundControl connection evidence is recorded in `evaluation_results/px4_sitl_v1_17_verification.json`. All of those tests are simulation-only.
 
 To verify the full MAVLink receive path without installing an autopilot, run `./run_all_demo.ps1 -MockSitl`. The clearly labelled mock source sends a repeating takeoff → 500 m northbound → hold → return → land telemetry sequence on UDP 14540. It is useful for the presentation and integration tests, but it is not flight dynamics, PX4, or ArduPilot.
 

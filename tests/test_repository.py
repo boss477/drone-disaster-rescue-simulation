@@ -45,6 +45,17 @@ class RepositoryTests(unittest.TestCase):
         self.assertTrue((ROOT / "pretrained_assets.json").is_file())
         self.assertTrue((ROOT / "download_pretrained_assets.ps1").is_file())
 
+    def test_sitl_launcher_selects_supported_wsl_distribution(self):
+        script = (ROOT / "start_sitl.ps1").read_text(encoding="utf-8")
+        self.assertIn("SITL_WSL_DISTRO", script)
+        self.assertIn("Ubuntu-24.04-PX4", script)
+        self.assertIn("wsl -d $Distro", script)
+        self.assertNotIn("wsl -d Ubuntu --", script)
+        self.assertIn("mavlink_shell.py", script)
+        self.assertIn("-o 14540", script)
+        self.assertIn("-o 14550", script)
+        self.assertIn("NoWindowsUdpForward", script)
+
     def test_live_operations_map_is_present_and_labelled(self):
         page = (ROOT / "live_operations.html").read_text(encoding="utf-8")
         script = (ROOT / "live_operations.js").read_text(encoding="utf-8")

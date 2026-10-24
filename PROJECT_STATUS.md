@@ -1,6 +1,6 @@
 # Project status and remaining work
 
-Last audited: **23 October 2026**
+Last audited: **25 October 2026**
 
 This is the source-of-truth checklist for the rescue-drone project. “Verified” means the repository contains the implementation and it has been exercised locally or covered by automated tests. Real incident data, AI detections, simulated flight, and physical hardware evidence are kept separate.
 
@@ -8,7 +8,7 @@ This is the source-of-truth checklist for the rescue-drone project. “Verified�
 
 The repository is already a complete **software demonstration platform** that runs without an API key. It combines disaster-scene classification, recorded-footage person detection, an operator-controlled Cesium rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL-to-Cesium path, mission evidence, and replay.
 
-It is **not yet a validated real rescue drone**. A real autopilot installation, measured AI results on held-out data, and repeatable latch hardware evidence are still required.
+It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gazebo SITL are complete, but repeatable latch hardware evidence and physical position feedback are still required.
 
 ## Implemented and verified
 
@@ -28,6 +28,7 @@ It is **not yet a validated real rescue drone**. A real autopilot installation, 
 | Aerial reconstruction | Runs the official OpenDroneMap Docker image on an external overlapping image set | `run_open_dronemap.ps1` |
 | QGroundControl output | MAVLink position, battery, progress, people, packages, candidate and release-approval values | `mavlink_bridge.py`, UDP 14550 |
 | Autopilot input | Receive-only PX4/ArduPilot telemetry drives Cesium position, heading, battery, mode, armed and GPS state | `sitl_telemetry_adapter.py` |
+| Real autopilot simulation | PX4 v1.17.0 X500 in Gazebo Harmonic on Ubuntu 24.04 WSL; QGroundControl plus takeoff/RTL, geofence, low-battery and GPS-loss checks | `evaluation_results/px4_sitl_v1_17_verification.json` |
 | No-autopilot integration demo | A clearly labelled mock MAVLink source verifies the receive path; it is not flight dynamics or an autopilot | `./run_all_demo.ps1 -MockSitl` |
 | Nano latch protocol | 9600-baud `R`/`L` protocol and status acknowledgement; software release gate requires confirmation and explicit hardware enablement | `rescue_nano/rescue_nano.ino`, `rescue_laptop.py` |
 | Repository safety | Loopback server, no committed model weights/API keys, simulation labels and SITL command guards | automated tests and `.gitignore` |
@@ -58,7 +59,7 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **81 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
+The latest audit passed **82 tests**. The successful and required-abort dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl.
 
 ## Work still required
 
@@ -70,13 +71,14 @@ The latest audit passed **81 tests**. The mission-replay path was also smoke-tes
 - Both models remain operator-confirmed candidate generators. The better aerial model still misses about 61% of labelled people. Full details, provenance and limits: `evaluation_results/README.md`.
 - CLIP still classifies the overall scene; it does not draw flood boundaries. It missed 22 of 51 flooded scenes, so it cannot verify that an area is safe or flood-free.
 
-### 2. Full autopilot simulation — blocked on supported SITL
+### 2. Full autopilot simulation — completed for PX4/Gazebo
 
-- Install PX4 or ArduPilot SITL in a supported environment.
-- The machine currently has Ubuntu WSL 26.04; current PX4 documentation supports Ubuntu 22.04/24.04, so use a supported WSL distribution rather than forcing an unsupported install.
-- Start with `./run_all_demo.ps1 -WithSitl -SitlFlavor px4` or `ardupilot`.
-- Verify QGroundControl, geofence, failsafe, low-battery, GPS-loss, aborted delivery and return-to-home scenarios.
-- Save the resulting mission evidence JSON for each repeatable scenario.
+- **Done (25 October 2026):** installed a dedicated D-drive-backed Ubuntu 24.04 WSL distribution named `Ubuntu-24.04-PX4` and built PX4 v1.17.0 (1,141/1,141 targets).
+- **Done:** launched the Gazebo Harmonic X500, received real PX4 MAVLink on Windows UDP 14540, and connected QGroundControl on UDP 14550 with a valid heartbeat and zero receive loss.
+- **Done:** verified takeoff and return-to-home, vertical geofence breach, accelerated low battery, and live GPS loss followed by PX4 failsafe landing.
+- **Done:** exercised the operator-approved delivery and unsafe-drop-zone abort dashboard workflows. These remain operator-workflow simulations and do not command PX4.
+- Machine-readable results and limitations are in `evaluation_results/px4_sitl_v1_17_verification.json`.
+- Start it with `./run_all_demo.ps1 -WithSitl -SitlFlavor px4`; the launcher auto-selects the supported WSL distribution and routes telemetry from WSL to Windows.
 
 ### 3. Physical latch validation — blocked on hardware evidence
 
@@ -102,8 +104,8 @@ The latest audit passed **81 tests**. The mission-replay path was also smoke-tes
 
 1. Run and preserve one successful and one aborted mock-MAVLink mission log.
 2. Add the held-out aerial dataset and publish evaluation results.
-3. Install supported PX4/ArduPilot SITL and repeat the two mission scenarios.
-4. Finish servo power/feedback and complete 100 documented bench cycles.
+3. Finish servo power/feedback and complete 100 documented bench cycles.
+4. Merge and verify the separate OpenDroneMap output branch when it is ready.
 5. Add the optional Cesium token last; it improves visuals but does not affect core correctness.
 
 ## Completion definition

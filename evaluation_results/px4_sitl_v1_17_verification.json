@@ -1,0 +1,75 @@
+{
+  "simulation_only": true,
+  "verified_on": "2026-10-25",
+  "autopilot": "PX4 v1.17.0",
+  "simulator": "Gazebo Harmonic 8.15.0",
+  "vehicle": "gz_x500",
+  "environment": {
+    "wsl_distribution": "Ubuntu-24.04-PX4",
+    "ubuntu": "24.04.5 LTS",
+    "storage": "D-drive-backed WSL distribution",
+    "build_target": "px4_sitl_default",
+    "build_result": "1141 of 1141 targets completed"
+  },
+  "telemetry": {
+    "dashboard_udp_port": 14540,
+    "qgroundcontrol_udp_port": 14550,
+    "qgroundcontrol_heartbeat": {
+      "valid": true,
+      "system_id": 255,
+      "component_id": 190,
+      "receive_loss_percent": 0.0
+    }
+  },
+  "scenarios": [
+    {
+      "name": "takeoff_and_return_to_home",
+      "result": "passed",
+      "evidence": "X500 armed, reached 2.46 m local altitude, entered auto:rtl, landed and disarmed."
+    },
+    {
+      "name": "vertical_geofence_breach",
+      "result": "passed",
+      "configuration": {
+        "GF_ACTION": 3,
+        "GF_MAX_VER_DIST": 1
+      },
+      "evidence": "PX4 reported maximum-altitude breach, held for five seconds, entered RTL, landed and disarmed."
+    },
+    {
+      "name": "low_battery",
+      "result": "passed",
+      "configuration": {
+        "SIM_BAT_DRAIN": 8,
+        "SIM_BAT_MIN_PCT": 5
+      },
+      "evidence": "PX4 reported low battery, entered hold, then RTL, landed and disarmed."
+    },
+    {
+      "name": "gps_loss",
+      "result": "passed",
+      "configuration": {
+        "gazebo_navsat_rate_hz_during_failure": 0.0001,
+        "gazebo_navsat_rate_hz_after_restore": 10
+      },
+      "evidence": "After the Gazebo NavSat stream stopped updating, PX4 reported invalid position setpoints, activated blind-land failsafe, landed and disarmed."
+    },
+    {
+      "name": "operator_approved_delivery_workflow",
+      "result": "passed",
+      "flight_source": "scripted dashboard path",
+      "evidence": "Candidate confirmation and independent release approval produced one simulated release and a mission-complete return."
+    },
+    {
+      "name": "unsafe_drop_zone_abort_workflow",
+      "result": "passed",
+      "flight_source": "scripted dashboard path",
+      "evidence": "Release remained blocked; operator abort returned to base with zero packages released."
+    }
+  ],
+  "limits": [
+    "All flights, failures, people and deliveries were simulated.",
+    "The dashboard delivery workflows were exercised separately from PX4 flight dynamics; the receive-only dashboard does not command PX4.",
+    "No real vehicle, motor or flight controller was connected or commanded."
+  ]
+}
