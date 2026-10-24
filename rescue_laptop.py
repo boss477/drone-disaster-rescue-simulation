@@ -17,7 +17,7 @@ from pathlib import Path
 import cv2
 from ultralytics import YOLO
 
-from vision_workflow import candidate_ready, release_allowed, source_label
+from vision_workflow import candidate_ready, parse_class_ids, release_allowed, source_label
 
 BAUD = 9600
 
@@ -31,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enable-hardware-release", action="store_true",
                         help="permit an operator-approved R command to the configured Nano")
     parser.add_argument("--model", default="yolov8n.pt")
+    parser.add_argument("--person-classes", default="0",
+                        help="model class IDs treated as people; VisDrone models normally use 0,1")
     parser.add_argument("--confidence", type=float, default=0.60)
     parser.add_argument("--confirm-frames", type=int, default=15)
     parser.add_argument("--log-dir", type=Path, default=Path("mission_logs"))
@@ -116,8 +118,16 @@ def main() -> int:
         return 2
 
     source = str(args.video) if args.video else args.camera_index
+    try:
+        person_classes = parse_class_ids(args.person_classes)
+    except ValueError as exc:
+        link.close()
+        log_file.close()
+        print(f"Invalid --person-classes: {exc}")
+        return 2
     source_name = source_label(str(args.video) if args.video else None, args.camera_index)
-    log("SESSION_STARTED", f"{source_name}; hardware_release={args.enable_hardware_release}")
+    log("SESSION_STARTED", f"{source_name}; model={args.model}; person_classes={person_classes}; "
+        f"hardware_release={args.enable_hardware_release}")
     model = YOLO(args.model)
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
@@ -141,7 +151,7 @@ def main() -> int:
             if not ok:
                 break
             frame_number += 1
-            result = model(frame, classes=[0], conf=args.confidence, verbose=False)[0]
+            result = model(frame, classes=person_classes, conf=args.confidence, verbose=False)[0]
             found = len(result.boxes) > 0
             for box in result.boxes.xyxy:
                 x1, y1, x2, y2 = map(int, box)

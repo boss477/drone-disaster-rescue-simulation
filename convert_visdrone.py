@@ -51,7 +51,9 @@ def convert_dataset(dataset: Path, out: Path) -> dict[str, int]:
             width, height = image.size
         annotation = dataset / "annotations" / f"{image_path.stem}.txt"
         lines = convert_annotation(annotation.read_text(encoding="utf-8"), width, height) if annotation.is_file() else []
-        shutil.copy2(image_path, images_out / image_path.name)
+        image_destination = images_out / image_path.name
+        if not image_destination.exists():
+            shutil.copy2(image_path, image_destination)
         (labels_out / f"{image_path.stem}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
         people += len(lines)
         with_people += bool(lines)

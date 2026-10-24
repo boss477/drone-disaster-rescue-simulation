@@ -107,6 +107,37 @@ py evaluate_aerial_people.py --images path\to\images --labels path\to\labels --o
 
 Keep the evaluation images separate from training images and report the model, confidence threshold and IoU threshold with the results. VisDrone classes `0` (pedestrian) and `1` (people) are treated as one person category by default.
 
+### No-training pretrained model option
+
+The project can use a VisDrone-fine-tuned YOLO11s checkpoint as-is; no local training is required. Store all large assets outside Git (for example on D:):
+
+```powershell
+./download_pretrained_assets.ps1 -AssetRoot D:\DroneRescueData -IncludeFloodNet
+```
+
+The download registry records source, license, expected checksum and person-class mapping in `pretrained_assets.json`. Run the pretrained aerial model on recorded footage:
+
+```powershell
+./run_recorded_footage.ps1 path\to\video.mp4 --model D:\DroneRescueData\models\yolo11s-visdrone-best.pt --person-classes 0,1
+```
+
+Evaluate it on the untouched VisDrone validation conversion:
+
+```powershell
+py evaluate_aerial_people.py --images D:\DroneRescueData\datasets\visdrone_val_yolo\images --labels D:\DroneRescueData\datasets\visdrone_val_yolo\labels --model D:\DroneRescueData\models\yolo11s-visdrone-best.pt --prediction-classes 0,1 --imgsz 640 --output D:\DroneRescueData\evaluation\yolo11s_visdrone.csv
+```
+
+To put the CLIP cache on the external drive too, set `DRONE_RESCUE_DATA_ROOT=D:\DroneRescueData` before running the classifier. Model and dataset artifacts are never committed.
+
+For a labelled flood/normal or multi-disaster CSV containing `image,label`, evaluate the existing pretrained CLIP model without training:
+
+```powershell
+$env:DRONE_RESCUE_DATA_ROOT='D:\DroneRescueData'
+py evaluate_disaster_dataset.py --manifest D:\DroneRescueData\datasets\labels.csv --image-root D:\DroneRescueData\datasets\images --output-dir D:\DroneRescueData\evaluation\clip
+```
+
+This writes per-image predictions plus accuracy, class support and a full confusion matrix. Do not report accuracy from a one-class test set; a flood-only collection can measure recall but cannot measure false alarms on normal scenes.
+
 Record the external dataset's source, license, version and split before evaluation:
 
 ```powershell

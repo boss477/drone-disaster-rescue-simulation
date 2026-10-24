@@ -23,6 +23,17 @@ Measured on **24 October 2026**. These are real measurements, and they show that
 | 640 | 1,039 | 355 | 12,930 | 74.5% | **7.4%** | 3.5 frames/s |
 | 1280 | 3,015 | 808 | 10,954 | 78.9% | **21.6%** | 1.6 frames/s |
 
+### Pretrained aerial model (no local training)
+
+The AGPL-3.0 `RISEF/yolov11s-visdrone` checkpoint was downloaded from Hugging Face, checksum-verified, and evaluated unchanged on the same held-out validation conversion at 640 px:
+
+| Model | True positives | False positives | Missed people | Precision | Recall | CPU speed |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Stock COCO YOLOv8n | 1,039 | 355 | 12,930 | 74.5% | 7.4% | 3.5 FPS |
+| Pretrained VisDrone YOLO11s | 5,502 | 2,797 | 8,467 | 66.3% | **39.4%** | 1.8 FPS |
+
+The aerial checkpoint improves recall by 32 percentage points (about 5.3×), at the cost of lower precision and speed. It still misses roughly 61% of labelled people, so the operator-confirmation requirement remains. The machine-readable result is `pretrained_yolo11s_visdrone_640.json`; the full per-image CSV remains on the external data drive and is not committed.
+
 Per-image counts are in `visdrone_val_yolov8n_640.csv` and `visdrone_val_yolov8n_1280.csv`; summaries in `summary_*.json`.
 
 - At 1280, 78 of the 531 images that contain people had **no** correct detection at all. Of the 17 images with no labelled people, 2 produced detections.

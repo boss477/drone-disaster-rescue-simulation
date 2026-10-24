@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 from evaluation_metrics import DetectionMetrics, match_detections
+from vision_workflow import parse_class_ids
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
@@ -24,10 +25,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--labels", type=Path, required=True)
     parser.add_argument("--model", default="yolov8n.pt")
     parser.add_argument("--truth-classes", default="0,1", help="comma-separated YOLO ground-truth classes")
+    parser.add_argument("--prediction-classes", default="0",
+                        help="model class IDs treated as people; use 0,1 for a VisDrone-trained model")
     parser.add_argument("--confidence", type=float, default=0.25)
     parser.add_argument("--iou", type=float, default=0.5)
     parser.add_argument("--imgsz", type=int, default=640, help="YOLO inference size (small aerial people need larger values)")
     parser.add_argument("--output", type=Path, default=Path("aerial_people_evaluation.csv"))
+    parser.add_argument("--summary", type=Path, help="optional JSON summary path")
     return parser.parse_args()
 
 
@@ -53,7 +57,8 @@ def main() -> int:
     import cv2
     from ultralytics import YOLO
 
-    classes = {int(value) for value in args.truth_classes.split(",")}
+    classes = set(parse_class_ids(args.truth_classes))
+    prediction_classes = parse_class_ids(args.prediction_classes)
     images = sorted(path for path in args.images.rglob("*") if path.suffix.lower() in IMAGE_SUFFIXES)
     if not images:
         print("No evaluation images found")
@@ -68,7 +73,7 @@ def main() -> int:
             continue
         height, width = frame.shape[:2]
         truth = read_yolo_boxes(args.labels / f"{image_path.stem}.txt", width, height, classes)
-        result = model(frame, classes=[0], conf=args.confidence, imgsz=args.imgsz, verbose=False)[0]
+        result = model(frame, classes=prediction_classes, conf=args.confidence, imgsz=args.imgsz, verbose=False)[0]
         predictions = [tuple(map(float, box)) for box in result.boxes.xyxy.cpu().tolist()]
         metrics = match_detections(predictions, truth, args.iou)
         totals = DetectionMetrics(totals.true_positive + metrics.true_positive,
@@ -95,8 +100,12 @@ def main() -> int:
         "confidence_threshold": args.confidence,
         "image_size": args.imgsz,
         "model": args.model,
+        "prediction_classes": prediction_classes,
         "csv": str(args.output),
     }
+    if args.summary:
+        args.summary.parent.mkdir(parents=True, exist_ok=True)
+        args.summary.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=2))
     return 0
 

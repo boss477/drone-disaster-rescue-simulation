@@ -20,8 +20,9 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 PROJECT_DIR = Path(__file__).resolve().parent
-CACHE_DIR = PROJECT_DIR / "models" / "hf_cache"
-# Keep the model cache inside the repository unless the user chose their own.
+ASSET_ROOT = Path(os.environ.get("DRONE_RESCUE_DATA_ROOT", PROJECT_DIR))
+CACHE_DIR = ASSET_ROOT / "models" / "hf_cache"
+# Use DRONE_RESCUE_DATA_ROOT for an external cache; otherwise keep the existing repository-local default.
 os.environ.setdefault("HF_HOME", str(CACHE_DIR))
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 

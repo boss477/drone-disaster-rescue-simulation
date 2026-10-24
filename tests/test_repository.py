@@ -41,6 +41,10 @@ class RepositoryTests(unittest.TestCase):
                      "start_mock_sitl.ps1", "mock_sitl_vehicle.py", "models/README.md"):
             self.assertTrue((ROOT / name).is_file(), name)
 
+    def test_pretrained_asset_registry_and_downloader_exist(self):
+        self.assertTrue((ROOT / "pretrained_assets.json").is_file())
+        self.assertTrue((ROOT / "download_pretrained_assets.ps1").is_file())
+
     def test_live_operations_map_is_present_and_labelled(self):
         page = (ROOT / "live_operations.html").read_text(encoding="utf-8")
         script = (ROOT / "live_operations.js").read_text(encoding="utf-8")

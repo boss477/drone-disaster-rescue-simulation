@@ -58,14 +58,15 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **75 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
+The latest audit passed **79 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
 
 ## Work still required
 
 ### 1. Real AI measurements — person detection measured, flood imagery still open
 
-- **Done (24 October 2026):** stock `yolov8n` was evaluated on the held-out VisDrone2019-DET validation split (548 images, 13,969 people). Result: **recall 7.4% at 640 px and 21.6% at 1280 px, precision about 75-79%**. It is not reliable for finding people from the air and must remain an operator-confirmed candidate generator. Full details, provenance and limits: `evaluation_results/README.md`.
-- Still to do: fine-tune on VisDrone **train** and re-evaluate on this untouched validation split; try tiled inference.
+- **Done (24 October 2026):** stock `yolov8n` was evaluated on the held-out VisDrone2019-DET validation split (548 images, 13,969 people). Result: **recall 7.4% at 640 px and 21.6% at 1280 px, precision about 75-79%**.
+- **Done (24 October 2026):** an externally pretrained VisDrone YOLO11s checkpoint was checksum-verified and evaluated unchanged on the same split. At 640 px it reached **39.4% recall and 66.3% precision at 1.8 FPS on CPU**. No project training was performed.
+- Both models remain operator-confirmed candidate generators. The better aerial model still misses about 61% of labelled people. Full details, provenance and limits: `evaluation_results/README.md`.
 - Still to do: add representative flood imagery (FloodNet) and measure the CLIP scene classifier on labelled images. CLIP currently classifies the overall scene; it does not draw flood boundaries and its accuracy has not been measured.
 
 ### 2. Full autopilot simulation — blocked on supported SITL

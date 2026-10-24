@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "assets": [
+    {
+      "id": "yolo11s-visdrone",
+      "kind": "model",
+      "source": "https://huggingface.co/RISEF/yolov11s-visdrone",
+      "download": "https://huggingface.co/RISEF/yolov11s-visdrone/resolve/main/weights/best.pt",
+      "filename": "models/yolo11s-visdrone-best.pt",
+      "sha256": "56b1d5da1fc8cab21b3b4204ca13b7d604d2ff68eca4756e02bb787c79a1c53b",
+      "license": "AGPL-3.0",
+      "person_classes": [0, 1],
+      "note": "Pretrained on VisDrone; used as-is without project training."
+    },
+    {
+      "id": "visdrone-2019-det-val",
+      "kind": "evaluation_dataset",
+      "source": "https://github.com/VisDrone/VisDrone-Dataset",
+      "download": "https://github.com/ultralytics/assets/releases/download/v0.0.0/VisDrone2019-DET-val.zip",
+      "filename": "datasets/VisDrone2019-DET-val.zip",
+      "sha256": "abeea063037e5d20398837deb11084e652402a34ddf4f207bdf541a6f2a35ef9",
+      "license": "research/non-commercial; verify publisher terms",
+      "note": "Held-out evaluation only; images are not committed."
+    },
+    {
+      "id": "floodnet-challenge",
+      "kind": "evaluation_dataset",
+      "source": "https://www.kaggle.com/datasets/aletbm/aerial-imagery-dataset-floodnet-challenge",
+      "kaggle_slug": "aletbm/aerial-imagery-dataset-floodnet-challenge",
+      "filename": "datasets/FloodNet",
+      "license": "publisher-specific; review the Kaggle data card before redistribution",
+      "note": "Canonical UAV flood imagery and labels; evaluation only."
+    }
+  ]
+}

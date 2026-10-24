@@ -84,8 +84,8 @@ class DependencyTests(unittest.TestCase):
         self.assertIn("downloaded", message)
         self.assertIn("offline", message)
 
-    def test_cache_dir_is_inside_repository(self):
-        self.assertTrue(str(dz.CACHE_DIR).startswith(str(dz.PROJECT_DIR)))
+    def test_cache_dir_uses_configured_asset_root(self):
+        self.assertEqual(dz.CACHE_DIR, dz.ASSET_ROOT / "models" / "hf_cache")
 
 
 if __name__ == "__main__":

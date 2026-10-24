@@ -15,3 +15,20 @@ def release_allowed(*, candidate_confirmed: bool, hardware_enabled: bool, serial
 
 def source_label(video_path: str | None, camera_index: int) -> str:
     return f"recorded:{video_path}" if video_path else f"camera:{camera_index}"
+
+
+def parse_class_ids(value: str) -> list[int]:
+    """Parse a stable, de-duplicated comma-separated class list."""
+    result: list[int] = []
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        class_id = int(item)
+        if class_id < 0:
+            raise ValueError("class IDs must be non-negative")
+        if class_id not in result:
+            result.append(class_id)
+    if not result:
+        raise ValueError("at least one class ID is required")
+    return result
