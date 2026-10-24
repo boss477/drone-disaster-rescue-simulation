@@ -1,4 +1,4 @@
-# Aerial person detection: measured results
+# AI evaluation: measured results
 
 Measured on **24 October 2026**. These are real measurements, and they show that the stock model is **not good enough to find people from the air**.
 
@@ -45,11 +45,27 @@ Per-image counts are in `visdrone_val_yolov8n_640.csv` and `visdrone_val_yolov8n
 - Higher resolution helps recall but halves the speed on CPU.
 - Realistic next steps: fine-tune on VisDrone **train** (evaluate again on this untouched validation split), try tiled inference, and use a GPU.
 
-## Limits of this measurement
+## Flood scene classification (pretrained CLIP, no training)
+
+The existing zero-shot `CLIP ViT-B-32 laion2b_s34b_b79k` classifier was evaluated unchanged on FloodNet Challenge Track 1's labelled training subset. The benchmark contains 51 flooded and 347 non-flooded aerial images. It is an external benchmark for this project, not model training and not the challenge's hidden test score.
+
+| Images | Correct six-category predictions | Accuracy | Flood precision | Flood recall | Flood F1 | CPU speed |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 398 | 318 | **79.9%** | **82.9%** | **56.9%** | **67.4%** | 1.07 images/s |
+
+For the 51 flooded images, CLIP predicted 29 as flood, 12 as storm damage, 9 as normal and 1 as landslide. For the 347 non-flooded images, 289 were predicted normal and 6 were falsely predicted flood. The full six-label confusion matrix is in `clip_floodnet_track1_labeled.json`.
+
+- Dataset source: FloodNet Challenge - EARTHVISION 2021, Track 1, labelled training subset.
+- The full archive and extracted 2.05 GB image subset remain on the external data drive and are not committed.
+- FloodNet's publisher-specific terms must be reviewed before redistribution; this repository contains only derived aggregate results.
+- The data are imbalanced (51 flood vs 347 normal), so the 79.9% accuracy must be read alongside flood recall. Missing 22 of 51 floods is unacceptable for autonomous emergency decisions.
+- CLIP chooses among six scene labels. A non-flooded image predicted as fire, landslide or storm is counted as incorrect even though FloodNet's source label is only non-flooded.
+
+## Limits of these measurements
 
 - Greedy IoU matching, not COCO mAP; the numbers are not directly comparable with published VisDrone leaderboards.
 - Detections inside VisDrone "ignored regions" count as false positives, which slightly understates precision.
-- Only person detection was measured. **FloodNet was not evaluated**, and the CLIP disaster/flood classifier has not been measured on a labelled set. CLIP scores remain relative matches, not accuracy.
+- CLIP was measured only for flooded vs non-flooded source labels. Fire, earthquake, landslide and storm accuracy still require appropriately labelled external datasets.
 - Single run on one CPU; no confidence-threshold sweep.
 
 ## Reproduce
@@ -57,4 +73,6 @@ Per-image counts are in `visdrone_val_yolov8n_640.csv` and `visdrone_val_yolov8n
 ```powershell
 py convert_visdrone.py --dataset <path>\VisDrone2019-DET-val --out <path>\visdrone_val_yolo
 py evaluate_aerial_people.py --images <path>\visdrone_val_yolo\images --labels <path>\visdrone_val_yolo\labels --model yolov8n.pt --imgsz 1280
+py build_floodnet_manifest.py --dataset <path>\FloodNetTrack1Labeled --output <path>\floodnet.csv
+py evaluate_disaster_dataset.py --manifest <path>\floodnet.csv --image-root <path>\FloodNetTrack1Labeled --output-dir <path>\clip_floodnet
 ```

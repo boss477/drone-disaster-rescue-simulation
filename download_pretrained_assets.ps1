@@ -38,6 +38,12 @@ if ($IncludeFloodNet) {
     $floodRoot = New-Item -ItemType Directory -Force -Path (Join-Path $datasets 'FloodNet')
     & kaggle datasets download -d 'aletbm/aerial-imagery-dataset-floodnet-challenge' -p $floodRoot.FullName
     if ($LASTEXITCODE -ne 0) { throw 'FloodNet download failed.' }
+    $floodAsset = $registry.assets | Where-Object id -eq 'floodnet-challenge'
+    $floodArchive = Join-Path $root $floodAsset.filename
+    if (-not (Test-Path -LiteralPath $floodArchive)) { throw "FloodNet archive not found: $floodArchive" }
+    $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $floodArchive).Hash.ToLowerInvariant()
+    if ($actual -ne $floodAsset.sha256) { throw 'Checksum mismatch: floodnet-challenge' }
+    Write-Host "Verified floodnet-challenge ($actual)" -ForegroundColor Green
 }
 
 Write-Host "Assets ready under $root" -ForegroundColor Green

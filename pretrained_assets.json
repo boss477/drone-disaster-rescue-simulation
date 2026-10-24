@@ -27,7 +27,8 @@
       "kind": "evaluation_dataset",
       "source": "https://www.kaggle.com/datasets/aletbm/aerial-imagery-dataset-floodnet-challenge",
       "kaggle_slug": "aletbm/aerial-imagery-dataset-floodnet-challenge",
-      "filename": "datasets/FloodNet",
+      "filename": "datasets/FloodNet/aerial-imagery-dataset-floodnet-challenge.zip",
+      "sha256": "d09b7748266b083ada49710ac91f4e5d885bf9a995ced5f12ed1a4a8ee22db7f",
       "license": "publisher-specific; review the Kaggle data card before redistribution",
       "note": "Canonical UAV flood imagery and labels; evaluation only."
     }

@@ -133,10 +133,11 @@ For a labelled flood/normal or multi-disaster CSV containing `image,label`, eval
 
 ```powershell
 $env:DRONE_RESCUE_DATA_ROOT='D:\DroneRescueData'
-py evaluate_disaster_dataset.py --manifest D:\DroneRescueData\datasets\labels.csv --image-root D:\DroneRescueData\datasets\images --output-dir D:\DroneRescueData\evaluation\clip
+py build_floodnet_manifest.py --dataset D:\DroneRescueData\datasets\FloodNetTrack1Labeled --output D:\DroneRescueData\evaluation\floodnet_track1_labeled.csv
+py evaluate_disaster_dataset.py --manifest D:\DroneRescueData\evaluation\floodnet_track1_labeled.csv --image-root D:\DroneRescueData\datasets\FloodNetTrack1Labeled --output-dir D:\DroneRescueData\evaluation\clip_floodnet
 ```
 
-This writes per-image predictions plus accuracy, class support and a full confusion matrix. Do not report accuracy from a one-class test set; a flood-only collection can measure recall but cannot measure false alarms on normal scenes.
+This writes per-image predictions plus accuracy, class support and a full confusion matrix. The measured FloodNet Track 1 labelled subset result is **79.9% six-category accuracy, 82.9% flood precision and 56.9% flood recall** on 398 images. See `evaluation_results/README.md` for provenance and limitations. Do not report accuracy from a one-class test set; a flood-only collection can measure recall but cannot measure false alarms on normal scenes.
 
 Record the external dataset's source, license, version and split before evaluation:
 

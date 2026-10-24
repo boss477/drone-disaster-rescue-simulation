@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-24",
+  "model": "CLIP ViT-B-32 laion2b_s34b_b79k",
+  "training_performed_by_project": false,
+  "dataset": "FloodNet Challenge - EARTHVISION 2021 Track 1 labelled training subset",
+  "images": 398,
+  "support": {
+    "flood scene": 51,
+    "normal scene": 347
+  },
+  "correct": 318,
+  "six_category_accuracy": 0.7989949748743719,
+  "flood_true_positives": 29,
+  "flood_false_positives": 6,
+  "flood_false_negatives": 22,
+  "flood_precision": 0.8285714285714286,
+  "flood_recall": 0.5686274509803921,
+  "flood_f1": 0.6744186046511628,
+  "seconds": 373.09536690000095,
+  "images_per_second": 1.0667513866680476,
+  "confusion_matrix": {
+    "flood scene": {
+      "flood scene": 29,
+      "fire scene": 0,
+      "earthquake damaged building": 0,
+      "landslide scene": 1,
+      "storm damage scene": 12,
+      "normal scene": 9
+    },
+    "normal scene": {
+      "flood scene": 6,
+      "fire scene": 2,
+      "earthquake damaged building": 0,
+      "landslide scene": 35,
+      "storm damage scene": 15,
+      "normal scene": 289
+    }
+  }
+}
