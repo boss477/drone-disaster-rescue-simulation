@@ -58,7 +58,7 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **71 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
+The latest audit passed **75 tests**. The mission-replay path was also smoke-tested in Chromium, and the mock vehicle → MAVLink adapter → `/api/autopilot` path was exercised end to end.
 
 ## Work still required
 

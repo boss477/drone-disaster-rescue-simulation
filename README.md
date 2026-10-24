@@ -183,6 +183,8 @@ and a real serial port; GPS is optional. Install the Arduino `Servo`, `SoftwareS
 upload the sketch, and use Serial Monitor at 9600 baud. Send `R` to release and
 `L` to lock. Connect the servo signal wire to Nano D6.
 
+For a continuous wiring-only bench check, upload `servo_sweep_d6/servo_sweep_d6.ino`. It moves the MG90S between 45° and 135° every two seconds on D6 and prints each command at 9600 baud. Test with propellers removed and do not attach a payload until the unloaded sweep is reliable.
+
 For the laptop side:
 
 ```powershell
