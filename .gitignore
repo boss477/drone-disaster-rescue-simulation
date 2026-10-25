@@ -17,3 +17,12 @@ models/*.pth
 *.pt
 *.onnx
 *.safetensors
+
+# OpenDroneMap products and survey photos live outside Git (D:\DroneRescueData\odm)
+*.laz
+*.las
+*.ply
+*.tif
+*.tiff
+*.obj
+*.mtl

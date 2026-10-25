@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "dataset_name": "Brighton Beach (OpenDroneMap sample dataset)",
+  "purpose": "Sample imagery for testing the OpenDroneMap pipeline. It is NOT live disaster data and says nothing about any real incident.",
+  "source_url": "https://github.com/pierotofy/drone_dataset_brighton_beach",
+  "index_url": "https://github.com/OpenDroneMap/ODMdata",
+  "license": "BSD-2-Clause (stated in the GitHub repository About section; the LICENSE file text was not reviewed)",
+  "image_count": 18,
+  "image_format": "JPG (DJI_0018.JPG - DJI_0035.JPG)",
+  "approx_download_size_mb": 62,
+  "gps_tagged": "yes, per the ODMdata index ('coordinates in EXIF'); not yet checked locally",
+  "download_date": null,
+  "download_status": "not_downloaded",
+  "expected_dataset_root": "D:\\DroneRescueData\\odm",
+  "expected_project_name": "brighton_beach",
+  "expected_images_dir": "D:\\DroneRescueData\\odm\\brighton_beach\\images",
+  "note": "Photos, Docker images and every ODM output (GeoTIFF, LAZ/PLY, OBJ) stay outside Git. Fill in download_date and set download_status to 'downloaded' after fetching the images."
+}
