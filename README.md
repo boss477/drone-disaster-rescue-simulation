@@ -95,6 +95,8 @@ The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted 
 
 After enabling Cesium 3D, use the preset buttons for an angled **Vancouver city + mountains**, **Dubai skyline**, or **Everest mountains** view. These are visualization presets; building and terrain detail depends on streamed Cesium coverage.
 
+The dashboard guards against an invalid Cesium camera near-plane. If hosted 3D still encounters a rendering error, it resets the simulated mission and falls back to the basic OpenStreetMap globe; **Reload 3D** retries hosted terrain and buildings. To run the browser regression check with Playwright and a local dashboard server running, use `py tests/earth_render_browser_check.py`.
+
 The **Sensor degradation** panel can independently inject camera noise, rain, fog, weak-GPS jitter, scripted wind drift, a two-second telemetry delay and a clearly labelled false AI alert. Effects are recorded in mission JSON. They degrade only the visualization and reported simulation telemetry; they do not alter PX4 state or send flight commands.
 
 ## Recorded footage and measurable person detection

@@ -26,6 +26,8 @@ const viewPresets = {
 };
 
 let viewer = null;
+let recoveringRender = false;
+let safeMapActive = false;
 let selected = null;
 let selectedMarker = null;
 let targetMarker = null;
@@ -256,6 +258,37 @@ async function loadOdmLayers() {
   }
 }
 
+function keepCameraFrustumFinite(scene) {
+  const frustum = scene.camera.frustum;
+  if (!Number.isFinite(frustum.near) || frustum.near <= 0) frustum.near = 0.1;
+  if (!Number.isFinite(frustum.far) || frustum.far <= frustum.near) {
+    frustum.far = Math.max(100_000_000, frustum.near + 1);
+  }
+}
+
+function recoverFromRenderError() {
+  if (recoveringRender) return;
+  if (safeMapActive) {
+    $('earthStatus').textContent = 'Safe map also failed to render. Refresh the page to retry.';
+    return;
+  }
+  recoveringRender = true;
+  safeMapActive = true;
+  $('earthStatus').textContent = '3D rendering failed. Restarting with the safe OpenStreetMap globe…';
+  setTimeout(async () => {
+    try {
+      resetMission();
+      await initGlobe('');
+      $('earthStatus').textContent = 'Safe OpenStreetMap globe ready. Use Reload 3D to retry hosted terrain and buildings.';
+      $('odmStatus').textContent = 'ODM layers cleared after a map rendering error. Reload them when ready.';
+    } catch (error) {
+      $('earthStatus').textContent = `Map recovery failed: ${error.message || error}. Refresh the page to retry.`;
+    } finally {
+      recoveringRender = false;
+    }
+  }, 0);
+}
+
 async function initGlobe(token = '') {
   if (!cesiumReady()) return;
   const previous = selected;
@@ -281,6 +314,8 @@ async function initGlobe(token = '') {
       creditContainer: $('cesiumCredit'),
       requestRenderMode: false,
     });
+    viewer.scene.preUpdate.addEventListener(keepCameraFrustumFinite);
+    viewer.scene.renderError.addEventListener(recoverFromRenderError);
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#07111c');
     viewer.scene.skyAtmosphere.show = true;
     baseTerrainProvider = viewer.terrainProvider;
@@ -832,6 +867,7 @@ $('loadCesium').onclick = () => {
     return;
   }
   sessionStorage.setItem('rescueCesiumToken', token);
+  safeMapActive = false;
   initGlobe(token);
 };
 $('loadOdm').onclick = loadOdmLayers;
