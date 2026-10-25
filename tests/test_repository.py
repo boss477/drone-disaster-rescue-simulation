@@ -67,7 +67,9 @@ class RepositoryTests(unittest.TestCase):
     def test_operator_controlled_earth_mission_is_present(self):
         page = (ROOT / "earth_rescue.html").read_text(encoding="utf-8")
         script = (ROOT / "earth_rescue.js").read_text(encoding="utf-8")
-        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog", "flightSource", "replayFile"):
+        for control in ("approveRelease", "abortMission", "confirmTarget", "downloadLog", "flightSource", "replayFile",
+                        "cameraNoise", "rainEffect", "fogEffect", "weakGps", "windDrift", "telemetryDelay",
+                        "falseDetections", "odmManifest", "loadOdm"):
             self.assertIn(f'id="{control}"', page)
         self.assertIn("operator_release_approved", script)
         self.assertIn("sessionStorage", script)
@@ -77,6 +79,10 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("startReplay", script)
         self.assertIn('data-preset="vancouver"', page)
         self.assertIn("flyToPreset", script)
+        self.assertIn("sensorPosition", script)
+        self.assertIn("loadOdmLayers", script)
+        self.assertIn("CesiumTerrainProvider.fromUrl", script)
+        self.assertTrue((ROOT / "odm" / "manifest.example.json").is_file())
         self.assertTrue((ROOT / "run_earth_rescue.ps1").is_file())
 
     def test_model_weights_not_tracked_by_git(self):

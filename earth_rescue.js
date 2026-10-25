@@ -43,6 +43,63 @@ let targetConfirmed = false;
 let autopilotConnected = false;
 let autopilotTelemetry = null;
 let replayGeneration = 0;
+let sensorTelemetryQueue = [];
+let odmImageryLayer = null;
+let odmPrimitives = [];
+let baseTerrainProvider = null;
+
+const sensorControlIds = ['cameraNoise', 'rainEffect', 'fogEffect', 'weakGps', 'windDrift', 'telemetryDelay', 'falseDetections'];
+
+function enabledSensorEffects() {
+  return sensorControlIds.filter(id => $(id).checked);
+}
+
+function setSensorControlsDisabled(disabled) {
+  sensorControlIds.forEach(id => { $(id).disabled = disabled; });
+  $('toggleSensors').disabled = disabled;
+}
+
+function syncSensorEffects() {
+  const overlay = $('sensorEffects');
+  overlay.classList.toggle('noise', $('cameraNoise').checked);
+  overlay.classList.toggle('rain', $('rainEffect').checked);
+  overlay.classList.toggle('fog', $('fogEffect').checked);
+  if (viewer) {
+    viewer.scene.fog.enabled = $('fogEffect').checked;
+    if ($('fogEffect').checked) viewer.scene.fog.density = 0.00055;
+  }
+  if (!$('telemetryDelay').checked) sensorTelemetryQueue = [];
+  const active = enabledSensorEffects();
+  $('sensorStatus').textContent = active.length
+    ? `SIMULATED: ${active.map(id => $(id).parentElement.textContent.trim()).join(' · ')}`
+    : 'Sensors nominal. Effects are simulated.';
+}
+
+function offsetMetres(position, east, north) {
+  const latitudeScale = 111320;
+  const longitudeScale = Math.max(1, latitudeScale * Math.cos(position.lat * Math.PI / 180));
+  return { ...position, lat: position.lat + north / latitudeScale, lon: position.lon + east / longitudeScale };
+}
+
+function applyWindDrift(position) {
+  if (!$('windDrift').checked || followsSITL()) return { ...position };
+  return offsetMetres(position, 7 + 4 * Math.sin(missionClock * 0.7), 3 * Math.cos(missionClock * 0.45));
+}
+
+function sensorPosition(position) {
+  let sensed = { ...position };
+  if ($('weakGps').checked) {
+    sensed = offsetMetres(sensed, 10 * Math.sin(missionClock * 2.3), 8 * Math.cos(missionClock * 1.7));
+  }
+  if (!$('telemetryDelay').checked) return sensed;
+  sensorTelemetryQueue.push({ time: missionClock, position: sensed });
+  const cutoff = missionClock - 2;
+  let delayed = sensorTelemetryQueue[0].position;
+  while (sensorTelemetryQueue.length > 1 && sensorTelemetryQueue[1].time <= cutoff) {
+    delayed = sensorTelemetryQueue.shift().position;
+  }
+  return delayed;
+}
 
 function followsSITL() {
   return $('flightSource').value === 'sitl';
@@ -100,11 +157,92 @@ function osmLayer() {
   return new Cesium.ImageryLayer(provider);
 }
 
+function removeOdmLayers(showStatus = true) {
+  if (viewer && odmImageryLayer) {
+    try { viewer.imageryLayers.remove(odmImageryLayer, true); } catch (_) { /* viewer may have been rebuilt */ }
+  }
+  if (viewer) {
+    odmPrimitives.forEach(item => {
+      try { viewer.scene.primitives.remove(item); } catch (_) { /* partial load */ }
+    });
+    if (baseTerrainProvider) viewer.terrainProvider = baseTerrainProvider;
+  }
+  odmImageryLayer = null;
+  odmPrimitives = [];
+  $('clearOdm').disabled = true;
+  if (showStatus) $('odmStatus').textContent = 'ODM layers cleared.';
+}
+
+function odmAssetUrl(path, manifestUrl) {
+  return new URL(path, new URL(manifestUrl, location.href)).toString();
+}
+
+async function loadOdmLayers() {
+  if (!viewer) return;
+  const manifestUrl = $('odmManifest').value.trim();
+  if (!manifestUrl) {
+    $('odmStatus').textContent = 'Enter an ODM manifest URL.';
+    return;
+  }
+  removeOdmLayers(false);
+  $('odmStatus').textContent = 'Loading ODM manifest…';
+  try {
+    const response = await fetch(manifestUrl, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`manifest HTTP ${response.status}`);
+    const manifest = await response.json();
+    const loaded = [];
+    if ($('odmOrtho').checked && manifest.orthophoto?.url) {
+      const options = {
+        url: odmAssetUrl(manifest.orthophoto.url, manifestUrl),
+        minimumLevel: manifest.orthophoto.minimumLevel ?? 0,
+        maximumLevel: manifest.orthophoto.maximumLevel ?? 22,
+        credit: manifest.credit || 'OpenDroneMap survey',
+      };
+      if (Array.isArray(manifest.orthophoto.rectangle) && manifest.orthophoto.rectangle.length === 4) {
+        options.rectangle = Cesium.Rectangle.fromDegrees(...manifest.orthophoto.rectangle);
+      }
+      odmImageryLayer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(options));
+      odmImageryLayer.alpha = manifest.orthophoto.alpha ?? 0.9;
+      loaded.push('orthophoto');
+    }
+    if ($('odmTerrain').checked && manifest.terrain?.url) {
+      viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(odmAssetUrl(manifest.terrain.url, manifestUrl));
+      loaded.push('elevation');
+    }
+    for (const [control, key, label] of [
+      ['odmCloud', 'pointCloud', 'point cloud'],
+      ['odmMesh', 'texturedMesh', 'textured mesh'],
+    ]) {
+      if (!$(control).checked || !manifest[key]?.url) continue;
+      const tileset = await Cesium.Cesium3DTileset.fromUrl(odmAssetUrl(manifest[key].url, manifestUrl));
+      viewer.scene.primitives.add(tileset);
+      odmPrimitives.push(tileset);
+      loaded.push(label);
+    }
+    if (!loaded.length) throw new Error('manifest has no selected Cesium-ready layers');
+    $('clearOdm').disabled = false;
+    $('odmStatus').textContent = `${manifest.name || 'ODM survey'}: ${loaded.join(', ')} loaded.`;
+    if (Number.isFinite(manifest.center?.lat) && Number.isFinite(manifest.center?.lon)) {
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(manifest.center.lon, manifest.center.lat, manifest.center.height || 900),
+        duration: 2.5,
+      });
+    } else if (odmPrimitives.length) {
+      await viewer.zoomTo(odmPrimitives[0]);
+    }
+  } catch (error) {
+    removeOdmLayers(false);
+    $('odmStatus').textContent = `ODM unavailable: ${error.message || error}. Generate/convert the friend branch outputs first.`;
+  }
+}
+
 async function initGlobe(token = '') {
   if (!cesiumReady()) return;
   const previous = selected;
   if (viewer && !viewer.isDestroyed()) viewer.destroy();
   viewer = null;
+  odmImageryLayer = null;
+  odmPrimitives = [];
   try {
     if (token) Cesium.Ion.defaultAccessToken = token;
     viewer = new Cesium.Viewer('globe', {
@@ -125,6 +263,8 @@ async function initGlobe(token = '') {
     });
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#07111c');
     viewer.scene.skyAtmosphere.show = true;
+    baseTerrainProvider = viewer.terrainProvider;
+    syncSensorEffects();
     $('earthStatus').textContent = token
       ? 'OpenStreetMap loaded. Loading Cesium terrain and 3D buildings…'
       : 'OpenStreetMap globe ready. Add a Cesium ion token later for terrain and 3D buildings.';
@@ -398,7 +538,9 @@ function buildMission() {
     flightSource: $('flightSource').value,
     samples: [],
     lastSampleAt: -1,
+    sensorEffects: enabledSensorEffects(),
   };
+  sensorTelemetryQueue = [];
   routeEntities.push(viewer.entities.add({
     polyline: {
       positions: Cesium.Cartesian3.fromDegreesArrayHeights([
@@ -421,9 +563,19 @@ function buildMission() {
     box: { dimensions: new Cesium.Cartesian3(2, 2, 2), material: Cesium.Color.fromCssColorString('#ffc45c') },
   }));
   missionClock = 0;
+  if ($('falseDetections').checked) {
+    const falseTarget = offsetMetres(target, 45, -35);
+    routeEntities.push(viewer.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(falseTarget.lon, falseTarget.lat, 25),
+      point: { pixelSize: 10, color: Cesium.Color.RED, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      label: markerLabel('INJECTED FALSE AI ALERT · SIMULATED', Cesium.Color.RED),
+    }));
+    logEvent('FALSE_DETECTION_INJECTED', 'A simulated false person alert was added for operator review; it is not a real detection.');
+  }
   lastFrame = performance.now();
   running = true;
   paused = false;
+  setSensorControlsDisabled(true);
   $('start').disabled = true;
   $('pause').disabled = false;
   $('pause').textContent = 'Pause';
@@ -433,7 +585,7 @@ function buildMission() {
   $('phase').textContent = 'LOADING PACKAGES';
   $('missionStatus').textContent = `Loading ${packageCount} simulated package(s).`;
   renderInventory(packageCount, 0);
-  logEvent('MISSION_STARTED', `${mission.scenario} scenario; ${packageCount} simulated package(s); position source ${mission.flightSource}`);
+  logEvent('MISSION_STARTED', `${mission.scenario} scenario; ${packageCount} simulated package(s); position source ${mission.flightSource}; sensor effects ${mission.sensorEffects.join(', ') || 'none'}`);
   requestAnimationFrame(animateMission);
 }
 
@@ -450,6 +602,7 @@ function groundDistanceMeters(from, to) {
 
 function finishMission(outcome) {
   running = false;
+  setSensorControlsDisabled(false);
   mission.outcome = outcome;
   mission.phase = 'complete';
   $('pause').disabled = true;
@@ -561,7 +714,9 @@ function postState(now, position) {
     packages_loaded: mission.packageCount,
     packages_onboard: mission.packageCount - mission.delivered,
     packages_delivered: mission.delivered,
-    people_detected: 1,
+    people_detected: $('falseDetections').checked ? 2 : 1,
+    false_detections_simulated: $('falseDetections').checked ? 1 : 0,
+    sensor_effects: mission.sensorEffects,
     site_index: 0,
     site_name: 'Operator-confirmed simulated drop zone',
     mission_seq: sequence,
@@ -582,8 +737,9 @@ function animateMission(now) {
   if (!paused) missionClock += (now - lastFrame) / 1000;
   lastFrame = now;
   const scriptedPosition = missionPosition();
-  const position = autopilotPosition() || scriptedPosition;
-  mission.current = position;
+  const actualPosition = autopilotPosition() || applyWindDrift(scriptedPosition);
+  const position = sensorPosition(actualPosition);
+  mission.current = actualPosition;
   drone.position = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.alt);
   if (followsSITL() && autopilotTelemetry?.heading_deg != null) {
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(autopilotTelemetry.heading_deg), 0, 0);
@@ -616,6 +772,9 @@ function animateMission(now) {
       battery_percent: Number(Number(battery).toFixed(1)),
       phase: mission.phase,
       packages_delivered: mission.delivered,
+      actual_lat: Number(actualPosition.lat.toFixed(7)),
+      actual_lon: Number(actualPosition.lon.toFixed(7)),
+      sensor_effects: mission.sensorEffects,
     });
   }
   renderInventory(mission.packageCount, mission.delivered);
@@ -629,6 +788,8 @@ function resetMission() {
   paused = false;
   missionClock = 0;
   mission = null;
+  sensorTelemetryQueue = [];
+  setSensorControlsDisabled(false);
   clearMissionEntities();
   $('phase').textContent = 'DRONE AT BASE';
   $('delivered').textContent = '0';
@@ -653,6 +814,20 @@ $('loadCesium').onclick = () => {
   sessionStorage.setItem('rescueCesiumToken', token);
   initGlobe(token);
 };
+$('loadOdm').onclick = loadOdmLayers;
+$('clearOdm').onclick = () => removeOdmLayers();
+$('toggleSensors').onclick = () => {
+  const enable = enabledSensorEffects().length === 0;
+  sensorControlIds.forEach(id => { $(id).checked = enable; });
+  $('toggleSensors').textContent = enable ? 'Disable all' : 'Enable all';
+  syncSensorEffects();
+};
+sensorControlIds.forEach(id => {
+  $(id).onchange = () => {
+    $('toggleSensors').textContent = enabledSensorEffects().length ? 'Disable all' : 'Enable all';
+    syncSensorEffects();
+  };
+});
 document.querySelectorAll('[data-preset]').forEach(button => {
   button.onclick = () => flyToPreset(button.dataset.preset);
 });

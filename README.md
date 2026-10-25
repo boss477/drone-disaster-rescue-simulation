@@ -95,6 +95,8 @@ The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted 
 
 After enabling Cesium 3D, use the preset buttons for an angled **Vancouver city + mountains**, **Dubai skyline**, or **Everest mountains** view. These are visualization presets; building and terrain detail depends on streamed Cesium coverage.
 
+The **Sensor degradation** panel can independently inject camera noise, rain, fog, weak-GPS jitter, scripted wind drift, a two-second telemetry delay and a clearly labelled false AI alert. Effects are recorded in mission JSON. They degrade only the visualization and reported simulation telemetry; they do not alter PX4 state or send flight commands.
+
 ## Recorded footage and measurable person detection
 
 Install `requirements-hardware.txt`, then run `./run_recorded_footage.ps1 path\to\video.mp4`. YOLO marks possible people, but the operator must press `c` to confirm or `x` to reject. No hardware command is sent in this mode. The program records candidate, confirmation, rejection, blocked-release and latch-status events in `mission_logs/`.
@@ -156,6 +158,14 @@ This repository uses the official [OpenDroneMap](https://github.com/OpenDroneMap
 ```
 
 The external directory receives ODM's orthophoto, point cloud, elevation products and textured 3D model. These can be large and must remain outside Git. They are reconstruction products from supplied imagery, not live disaster evidence.
+
+To display those outputs in the Earth dashboard, convert the raw GeoTIFF, LAZ/PLY and OBJ products to the browser formats listed in `odm/README.md`, copy `odm/manifest.example.json` to `D:\DroneRescueData\odm\manifest.json`, and run:
+
+```powershell
+./run_earth_rescue.ps1 -OdmRoot D:\DroneRescueData\odm
+```
+
+Press **Load ODM** to add the selected orthophoto, elevation terrain, point cloud and textured mesh. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 

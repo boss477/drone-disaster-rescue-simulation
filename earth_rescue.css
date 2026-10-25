@@ -2,6 +2,14 @@
 *{box-sizing:border-box}
 body{margin:0;overflow:hidden}
 #globe{position:absolute;inset:0;background:radial-gradient(ellipse at 60% 50%,#173047,#07111c 75%)}
+#sensorEffects{position:absolute;z-index:3;inset:0;pointer-events:none;overflow:hidden}
+#sensorEffects>div{position:absolute;inset:-12%;display:none}
+#sensorEffects.noise .sensor-noise{display:block;opacity:.13;background:repeating-conic-gradient(#fff 0 .15deg,#000 0 .3deg);background-size:5px 5px;mix-blend-mode:screen;animation:sensorNoise .18s steps(2) infinite}
+#sensorEffects.rain .sensor-rain{display:block;opacity:.32;background:repeating-linear-gradient(104deg,transparent 0 18px,#bde8ff 19px 20px,transparent 21px 39px);background-size:80px 120px;animation:sensorRain .65s linear infinite}
+#sensorEffects.fog .sensor-fog{display:block;background:linear-gradient(105deg,#cfe5ec22,#e5f3f077 52%,#bdcedb33);filter:blur(14px);animation:sensorFog 7s ease-in-out infinite alternate}
+@keyframes sensorNoise{to{transform:translate(4px,-3px)}}
+@keyframes sensorRain{to{background-position:-35px 120px}}
+@keyframes sensorFog{to{transform:translateX(5%);opacity:.65}}
 #panel{position:absolute;z-index:5;left:18px;top:18px;bottom:18px;width:min(410px,calc(100vw - 36px));overflow:auto;padding:18px;background:#091724ee;border:1px solid #284457;border-radius:14px;box-shadow:0 12px 45px #0009;backdrop-filter:blur(10px)}
 .brand{font-size:11px;letter-spacing:.18em;font-weight:900;color:#7fe2ca}
 .brand span{color:#91aec0;margin-left:5px}
@@ -22,6 +30,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .preset-title{margin-top:11px;font-size:9px;font-weight:900;letter-spacing:.12em;color:#8ea7b7}
 .preset-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
 .preset-grid button{padding:7px 4px;font-size:9px}
+.odm-checks{display:grid;grid-template-columns:1fr 1fr;margin-top:8px}
 section{border-top:1px solid #263e50;margin-top:14px;padding-top:9px}
 h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 .row,.log-head{justify-content:space-between}
@@ -42,6 +51,10 @@ h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 .package-row input{display:block;width:100%;margin-top:5px}
 .scenario-label{display:block;font-size:10px;color:#a9bdc9;margin-top:9px}
 .scenario-label select{display:block;width:100%;margin-top:5px}
+.sensor-box{margin-top:10px;padding:10px;border:1px solid #365269;border-radius:8px;background:#0c1f2e}
+.sensor-box h2{margin:0}
+.sensor-box .row button{padding:6px 8px;font-size:9px}
+.sensor-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;margin-top:8px;font-size:10px;color:#b9cbd6}
 .candidate,.approval{margin-top:10px;padding:10px;border:1px solid #365269;border-radius:8px;background:#102536}
 .candidate>b,.approval>b{display:block;font-size:11px;color:#d8edf6}
 .candidate>span,.approval>span{display:block;margin-top:4px;font-size:10px;line-height:1.4;color:#a2bac8}

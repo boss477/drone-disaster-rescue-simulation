@@ -9,6 +9,7 @@
 </head>
 <body>
 <div id="globe"></div>
+<div id="sensorEffects" aria-hidden="true"><div class="sensor-noise"></div><div class="sensor-rain"></div><div class="sensor-fog"></div></div>
 <aside id="panel">
   <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
   <h1>Rescue mission</h1>
@@ -20,6 +21,11 @@
     <div id="earthStatus" class="status">Loading the no-key map…</div>
     <div class="preset-title">3D VIEW PRESETS</div>
     <div class="preset-grid"><button data-preset="vancouver" class="quiet">City + mountains</button><button data-preset="dubai" class="quiet">Skyline</button><button data-preset="everest" class="quiet">Mountains</button></div>
+    <div class="preset-title">OPENDRONEMAP DATA</div>
+    <small>Loads Cesium-ready files generated from your friend's ODM output. Large files remain outside Git.</small>
+    <div class="keyrow"><input id="odmManifest" value="/odm-data/manifest.json" aria-label="ODM manifest URL"><button id="loadOdm" class="quiet">Load ODM</button><button id="clearOdm" class="quiet" disabled>Clear</button></div>
+    <div class="checks odm-checks"><label><input id="odmOrtho" type="checkbox" checked> Orthophoto</label><label><input id="odmTerrain" type="checkbox" checked> Elevation</label><label><input id="odmCloud" type="checkbox" checked> Point cloud</label><label><input id="odmMesh" type="checkbox" checked> Mesh</label></div>
+    <div id="odmStatus" class="status">ODM data not loaded.</div>
   </section>
   <section>
     <div class="row"><h2>Active incidents</h2><button id="refresh" class="quiet">Refresh</button></div>
@@ -36,6 +42,19 @@
     <label class="scenario-label">Aircraft position source<select id="flightSource"><option value="scripted">Scripted demonstration path</option><option value="sitl">Follow PX4 / ArduPilot SITL telemetry</option></select></label>
     <div id="sitlStatus" class="status">SITL feed not selected.</div>
     <label class="scenario-label">Demonstration scenario<select id="scenario"><option value="success">Successful operator-approved delivery</option><option value="abort">Aborted delivery: unsafe drop zone</option></select></label>
+    <div class="sensor-box">
+      <div class="row"><h2>Sensor degradation</h2><button id="toggleSensors" class="quiet" type="button">Enable all</button></div>
+      <div class="sensor-grid">
+        <label><input id="cameraNoise" type="checkbox"> Camera noise</label>
+        <label><input id="rainEffect" type="checkbox"> Rain</label>
+        <label><input id="fogEffect" type="checkbox"> Fog</label>
+        <label><input id="weakGps" type="checkbox"> Weak GPS</label>
+        <label><input id="windDrift" type="checkbox"> Wind drift</label>
+        <label><input id="telemetryDelay" type="checkbox"> 2 s delay</label>
+        <label><input id="falseDetections" type="checkbox"> False AI alert</label>
+      </div>
+      <div id="sensorStatus" class="status">Sensors nominal. Effects are simulated.</div>
+    </div>
     <div class="candidate" id="candidate">
       <b>AI candidate: possible stranded person</b>
       <span>SIMULATED detection · confidence 78% · operator review required</span>

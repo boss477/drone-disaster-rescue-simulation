@@ -1,8 +1,10 @@
 import json
+import tempfile
 import threading
 import unittest
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import sim_server
 
@@ -67,6 +69,25 @@ class SimServerTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             urllib.request.urlopen(request, timeout=5)
         self.assertEqual(ctx.exception.code, 400)
+
+    def test_serves_external_odm_folder_without_exposing_parent(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "odm"
+            root.mkdir()
+            (root / "manifest.json").write_text('{"name":"test"}', encoding="utf-8")
+            outside = Path(temp) / "secret.txt"
+            outside.write_text("private", encoding="utf-8")
+            server = sim_server.make_server(0, odm_root=root)
+            base = f"http://127.0.0.1:{server.server_address[1]}"
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            try:
+                self.assertEqual(json.load(urllib.request.urlopen(base + "/odm-data/manifest.json"))["name"], "test")
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(base + "/odm-data/%2e%2e/secret.txt")
+                self.assertEqual(ctx.exception.code, 404)
+            finally:
+                server.shutdown()
+                server.server_close()
 
 
 if __name__ == "__main__":

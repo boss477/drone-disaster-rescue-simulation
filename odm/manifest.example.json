@@ -1,0 +1,13 @@
+{
+  "name": "Example OpenDroneMap survey",
+  "center": { "lat": 50.823, "lon": -0.138, "height": 900 },
+  "orthophoto": {
+    "url": "orthophoto/{z}/{x}/{y}.png",
+    "minimumLevel": 12,
+    "maximumLevel": 22,
+    "rectangle": [-0.15, 50.81, -0.12, 50.84]
+  },
+  "terrain": { "url": "terrain/" },
+  "pointCloud": { "url": "pointcloud/tileset.json" },
+  "texturedMesh": { "url": "textured-mesh/tileset.json" }
+}
