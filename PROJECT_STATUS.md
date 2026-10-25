@@ -6,7 +6,7 @@ This is the source-of-truth checklist for the rescue-drone project. â€œVerifiedâ
 
 ## Current result
 
-The repository is already a complete **software demonstration platform** that runs without an API key. It combines disaster-scene classification, recorded-footage person detection, an operator-controlled Cesium rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL-to-Cesium path, mission evidence, and replay.
+The repository is a **software demonstration platform** with an automatic 3D rescue demo and a separate manual mission workflow. Hosted Cesium 3D uses the committed public demo token; the basic OpenStreetMap globe works without it. It combines disaster-scene classification, recorded-footage person detection, a Cesium rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL-to-Cesium path, mission evidence, and replay.
 
 It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gazebo SITL are complete, but repeatable latch hardware evidence and physical position feedback are still required.
 
@@ -19,6 +19,7 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
+| Complete 3D rescue demo | Terrain-aware local drone, flooded settlement, three rooftop people, sequential package unloading, takeoff/landing, automatic demo success/abort, overview/follow camera and HUD | **Run 3D rescue demo**, `tests/earth_rescue_mission_browser_check.py` |
 | Detailed Earth view | Cesium terrain and OSM 3D buildings load automatically with a committed public demo token; browser-session override remains available | `earth_rescue.js`, token field in `earth_rescue.html` |
 | Sensor degradation | Switchable camera noise, rain, fog, GPS jitter, scripted wind drift, telemetry delay and false AI alert; effects are logged and do not command PX4 | **Sensor degradation** in `earth_rescue.html` |
 | ODM dashboard integration | Read-only external-data loader for orthophoto, DSM visualization, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
@@ -33,7 +34,7 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Real autopilot simulation | PX4 v1.17.0 X500 in Gazebo Harmonic on Ubuntu 24.04 WSL; QGroundControl plus takeoff/RTL, geofence, low-battery and GPS-loss checks | `evaluation_results/px4_sitl_v1_17_verification.json` |
 | No-autopilot integration demo | A clearly labelled mock MAVLink source verifies the receive path; it is not flight dynamics or an autopilot | `./run_all_demo.ps1 -MockSitl` |
 | Nano latch protocol | 9600-baud `R`/`L` protocol and status acknowledgement; software release gate requires confirmation and explicit hardware enablement | `rescue_nano/rescue_nano.ino`, `rescue_laptop.py` |
-| Repository safety | Loopback server, no committed model weights/API keys, simulation labels and SITL command guards | automated tests and `.gitignore` |
+| Repository safety | Loopback server, no committed model weights, public demo Cesium token, simulation labels and SITL command guards | automated tests and `.gitignore` |
 
 ## Run the working demonstrations now
 
@@ -62,6 +63,8 @@ py -m unittest discover -s tests -q
 ```
 
 The latest audit passed **95 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings.
+
+The complete 3D rescue demo was also checked in Chrome: three sequential deliveries and landing, unsafe-zone abort with no release, terrain clearance, pause, and manual approval gating. The camera-frustum rendering regression and safe-map fallback have a separate browser check. These are software simulation checks; the physical latch still needs the bench evidence below.
 
 ## Work still required
 

@@ -14,6 +14,14 @@
   <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
   <h1>Rescue mission</h1>
   <p class="notice">REAL MAP + LIVE PUBLIC HAZARD DATA · DRONE, ROUTE, PEOPLE & PAYLOAD ARE SIMULATED</p>
+  <section class="demo-box">
+    <b>Watch a complete 3D rescue</b>
+    <small>Three people on a rooftop, three aid packages, slow flight and return to base. The demo makes simulated review decisions automatically.</small>
+    <label class="scenario-label">Demo outcome<select id="demoOutcome"><option value="success">Deliver aid and return</option><option value="abort">Unsafe zone: abort and return</option></select></label>
+    <div class="buttonrow"><button id="runDemo" disabled>Run 3D rescue demo</button><button id="missionView" class="quiet" disabled>Overview</button></div>
+    <label class="scenario-label"><input id="followDrone" type="checkbox"> Follow the drone</label>
+    <div id="demoStatus" class="status" role="status">Loading the Earth view…</div>
+  </section>
   <section class="keybox">
     <b class="map-label">Map mode</b>
     <small>Cesium terrain and 3D buildings load automatically with the public demo token. Replace it here if needed.</small>
@@ -77,8 +85,14 @@
   <section class="weather-note"><b>Data notes</b><br>NASA EONET events and Open-Meteo weather are informational and may be delayed. Satellite detections do not define precise hazard boundaries or safe flight paths. This is not an emergency-response tool.</section>
   <footer>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · Optional 3D content: Cesium ion · Incidents: <a href="https://eonet.gsfc.nasa.gov/" target="_blank" rel="noopener">NASA EONET</a> · Weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open‑Meteo</a></footer>
 </aside>
+<div id="missionHud" class="mission-hud" hidden aria-live="polite">
+  <small>RESCUE 01 · SIMULATION</small><b id="hudPhase">READY</b>
+  <div><span>People <strong id="hudPeople">3</strong></span><span>Onboard <strong id="hudOnboard">0</strong></span><span>Delivered <strong id="hudDelivered">0</strong></span><span>Altitude <strong id="hudAltitude">0 m</strong></span></div>
+  <p id="hudDetail">Preparing the rescue scene.</p>
+</div>
 <div id="cesiumCredit"></div>
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+<script src="earth_rescue_scene.js"></script>
 <script src="earth_rescue.js"></script>
 </body>
 </html>

@@ -51,6 +51,8 @@ let sensorTelemetryQueue = [];
 let odmImageryLayers = [];
 let odmPrimitives = [];
 let baseTerrainProvider = null;
+let preparingMission = false;
+let missionPreparation = 0;
 
 const sensorControlIds = ['cameraNoise', 'rainEffect', 'fogEffect', 'weakGps', 'windDrift', 'telemetryDelay', 'falseDetections'];
 
@@ -110,7 +112,8 @@ function followsSITL() {
 }
 
 function refreshStartAvailability() {
-  $('start').disabled = !selected || !targetConfirmed || running || (followsSITL() && !autopilotConnected);
+  $('start').disabled = !selected || !targetConfirmed || running || preparingMission || (followsSITL() && !autopilotConnected);
+  $('runDemo').disabled = !viewer || running || preparingMission;
 }
 
 async function refreshAutopilot() {
@@ -298,6 +301,12 @@ async function initGlobe(token = '') {
   odmPrimitives = [];
   try {
     if (token) Cesium.Ion.defaultAccessToken = token;
+    let terrainProvider = new Cesium.EllipsoidTerrainProvider();
+    let terrainFailed = false;
+    if (token) {
+      try { terrainProvider = await Cesium.createWorldTerrainAsync(); }
+      catch (_) { terrainFailed = true; }
+    }
     viewer = new Cesium.Viewer('globe', {
       animation: false,
       timeline: false,
@@ -310,9 +319,10 @@ async function initGlobe(token = '') {
       infoBox: false,
       selectionIndicator: false,
       baseLayer: osmLayer(),
-      terrain: token ? Cesium.Terrain.fromWorldTerrain() : undefined,
+      terrainProvider,
       creditContainer: $('cesiumCredit'),
       requestRenderMode: false,
+      targetFrameRate: 30,
     });
     viewer.scene.preUpdate.addEventListener(keepCameraFrustumFinite);
     viewer.scene.renderError.addEventListener(recoverFromRenderError);
@@ -327,12 +337,14 @@ async function initGlobe(token = '') {
       try {
         const buildings = await Cesium.createOsmBuildingsAsync();
         viewer.scene.primitives.add(buildings);
-        $('earthStatus').textContent = 'Cesium terrain and OpenStreetMap 3D buildings ready.';
+        $('earthStatus').textContent = terrainFailed
+          ? '3D buildings ready. Hosted terrain unavailable; using the basic globe.'
+          : 'Cesium terrain and OpenStreetMap 3D buildings ready.';
       } catch (error) {
         $('earthStatus').textContent = `Base map ready; 3D content failed: ${error.message || error}`;
       }
     }
-    viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(0, 15_000_000, 11_000_000) });
+    viewer.camera.setView({ destination: Cesium.Cartesian3.fromDegrees(0, 20, 20_000_000) });
     viewer.screenSpaceEventHandler.setInputAction(event => {
       const ray = viewer.camera.getPickRay(event.position);
       const hit = ray ? viewer.scene.globe.pick(ray, viewer.scene) : null;
@@ -348,6 +360,8 @@ async function initGlobe(token = '') {
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     if (previous) setLocation(previous.lat, previous.lon, previous.name, previous.source, previous.uncertainty);
+    refreshStartAvailability();
+    $('demoStatus').textContent = 'Ready. Run the demo to watch the full rescue procedure.';
   } catch (error) {
     $('earthStatus').textContent = `Map could not start: ${error.message || error}`;
   }
@@ -504,7 +518,9 @@ function markerLabel(text, color) {
 }
 
 function setLocation(lat, lon, name, source, uncertainty) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || running) return;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || running) return;
+  missionPreparation += 1;
+  preparingMission = false;
   selected = { lat, lon, name, source, uncertainty, timestamp: new Date().toISOString() };
   targetConfirmed = false;
   $('selection').textContent = `${name} · ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
@@ -518,13 +534,13 @@ function setLocation(lat, lon, name, source, uncertainty) {
     if (targetMarker) viewer.entities.remove(targetMarker);
     selectedMarker = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(lon, lat, 30),
-      point: { pixelSize: 12, color: Cesium.Color.CYAN, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      point: { pixelSize: 12, color: Cesium.Color.CYAN, heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
       label: markerLabel('SIMULATED BASE', Cesium.Color.CYAN),
     });
     const target = targetFor();
     targetMarker = viewer.entities.add({
       position: Cesium.Cartesian3.fromDegrees(target.lon, target.lat, 30),
-      point: { pixelSize: 11, color: Cesium.Color.ORANGE, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+      point: { pixelSize: 11, color: Cesium.Color.ORANGE, heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND, outlineColor: Cesium.Color.WHITE, outlineWidth: 2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
       label: markerLabel('AI CANDIDATE · UNCONFIRMED', Cesium.Color.ORANGE),
     });
     viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, lat, 3500), duration: 2.2 });
@@ -548,6 +564,7 @@ function flyToPreset(key) {
 
 function clearMissionEntities() {
   if (!viewer) return;
+  viewer.trackedEntity = undefined;
   if (drone) viewer.entities.remove(drone);
   routeEntities.forEach(entity => viewer.entities.remove(entity));
   packages.forEach(entity => viewer.entities.remove(entity));
@@ -574,14 +591,75 @@ function setMissionPhase(phase, detail) {
   logEvent(phase.toUpperCase(), detail || phase);
 }
 
-function buildMission() {
-  if (!viewer || !selected || !targetConfirmed || (followsSITL() && !autopilotConnected)) return;
+function setMissionInputsDisabled(disabled) {
+  ['flightSource','scenario','packageCount','routeRadius','demoOutcome'].forEach(id => { $(id).disabled = disabled; });
+}
+
+function missionWorldPosition(position) {
+  const height = followsSITL() && mission?.terrain
+    ? mission.terrain.heights[0] + position.alt : null;
+  return RescueScene.worldPosition(mission?.terrain, position, height);
+}
+
+function missionOverview() {
+  if (!viewer || !mission) return;
+  viewer.camera.cancelFlight();
+  $('followDrone').checked = false;
+  viewer.trackedEntity = undefined;
+  const center = interpolate(selected, mission.target, 0.5);
+  const height = RescueScene.groundHeight(mission.terrain, center) + 25;
+  viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(center.lon,center.lat,height),
+    new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-42),
+      Math.max(500,groundDistanceMeters(selected,mission.target) * 1.8)));
+  viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+}
+
+async function runRescueDemo() {
+  if (!viewer || running || preparingMission) return;
+  resetMission();
+  $('flightSource').value = 'scripted';
+  $('scenario').value = $('demoOutcome').value;
+  $('packageCount').value = '3';
+  $('routeRadius').value = '250';
+  setLocation(46.8421,-91.994,'Flood rescue training area','scripted 3D demonstration','simulated placement');
+  selected.demoScene = true;
+  targetConfirmed = true;
+  $('candidate').classList.add('confirmed');
+  logEvent('DEMO_TARGET_REVIEW','Automatic candidate confirmation for the software demonstration.');
+  if (targetMarker) targetMarker.label.text = 'DEMO REVIEWED · 3 SIMULATED PEOPLE';
+  await buildMission(true);
+}
+
+async function buildMission(autoDemo = false) {
+  autoDemo = autoDemo === true;
+  if (!viewer || !selected || !targetConfirmed || running || preparingMission || (followsSITL() && !autopilotConnected)) return;
+  preparingMission = true;
+  const generation = ++missionPreparation;
+  const activeViewer = viewer;
+  const base = { ...selected };
+  const target = targetFor(base);
+  refreshStartAvailability();
+  $('demoStatus').textContent = 'Preparing terrain and 3D rescue scene…';
+  let terrain;
+  try { terrain = await RescueScene.terrainProfile(activeViewer,base,target); }
+  catch (error) {
+    if (generation === missionPreparation) {
+      preparingMission = false;
+      refreshStartAvailability();
+      $('demoStatus').textContent = `Scene preparation interrupted: ${error.message || error}. Retry the demo.`;
+    }
+    return;
+  }
+  if (generation !== missionPreparation || activeViewer !== viewer) return;
+  preparingMission = false;
   replayGeneration += 1;
   clearMissionEntities();
-  const target = targetFor();
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
   mission = {
     target,
+    terrain,
+    autoDemo,
+    people: 3,
     packageCount,
     delivered: 0,
     operatorApproved: false,
@@ -596,26 +674,27 @@ function buildMission() {
     sensorEffects: enabledSensorEffects(),
   };
   sensorTelemetryQueue = [];
+  [[selectedMarker,base],[targetMarker,target]].forEach(([marker,position]) => {
+    if (!marker) return;
+    marker.position = RescueScene.worldPosition(terrain,{ ...position, alt: 18 });
+    marker.point.heightReference = Cesium.HeightReference.NONE;
+  });
+  routeEntities.push(...RescueScene.addSite(viewer,base,target,terrain,Boolean(base.demoScene)));
+  const routePositions = terrain.heights.map((height,index) => Cesium.Cartesian3.fromDegrees(
+    base.lon + (target.lon-base.lon)*index/12,base.lat + (target.lat-base.lat)*index/12,height+75));
   routeEntities.push(viewer.entities.add({
     polyline: {
-      positions: Cesium.Cartesian3.fromDegreesArrayHeights([
-        selected.lon, selected.lat, 120,
-        target.lon, target.lat, 120,
-        selected.lon, selected.lat, 120,
-      ]),
+      positions: new Cesium.CallbackProperty(() => routePositions, false),
       width: 3,
       material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.CYAN, dashLength: 12 }),
     },
   }));
-  drone = viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(selected.lon, selected.lat, 12),
-    model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 64, maximumScale: 120 },
-    point: { pixelSize: 10, color: Cesium.Color.CYAN },
-    label: markerLabel('SIMULATED DRONE', Cesium.Color.CYAN),
-  });
+  const aircraft = RescueScene.addDrone(viewer,missionWorldPosition({ ...base, alt: 3 }),() => missionClock);
+  drone = aircraft.body;
+  routeEntities.push(...aircraft.parts);
   packages = Array.from({ length: packageCount }, (_, index) => viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(selected.lon + index * 0.00001, selected.lat, 8),
-    box: { dimensions: new Cesium.Cartesian3(2, 2, 2), material: Cesium.Color.fromCssColorString('#ffc45c') },
+    position: missionWorldPosition({ ...base, alt: 1 }),
+    box: { dimensions: new Cesium.Cartesian3(1.5, 1.5, 1.5), material: Cesium.Color.fromCssColorString('#ffc45c') },
   }));
   missionClock = 0;
   if ($('falseDetections').checked) {
@@ -631,6 +710,15 @@ function buildMission() {
   running = true;
   paused = false;
   setSensorControlsDisabled(true);
+  setMissionInputsDisabled(true);
+  $('runDemo').disabled = true;
+  $('missionView').disabled = false;
+  $('missionHud').hidden = false;
+  $('demoStatus').textContent = autoDemo
+    ? 'Automatic software demonstration running. All people, flooding and decisions are simulated.'
+    : 'Manual mission running. Approve or abort at the drop zone.';
+  if (!terrain.sampled) $('demoStatus').textContent += ' Using currently loaded terrain heights.';
+  $('panel').scrollTop = 0;
   $('start').disabled = true;
   $('pause').disabled = false;
   $('pause').textContent = 'Pause';
@@ -640,8 +728,10 @@ function buildMission() {
   $('phase').textContent = 'LOADING PACKAGES';
   $('missionStatus').textContent = `Loading ${packageCount} simulated package(s).`;
   renderInventory(packageCount, 0);
+  missionOverview();
   logEvent('MISSION_STARTED', `${mission.scenario} scenario; ${packageCount} simulated package(s); position source ${mission.flightSource}; sensor effects ${mission.sensorEffects.join(', ') || 'none'}`);
-  requestAnimationFrame(animateMission);
+  const flightGeneration = replayGeneration;
+  requestAnimationFrame(now => animateMission(now,flightGeneration));
 }
 
 function interpolate(from, to, fraction) {
@@ -658,6 +748,7 @@ function groundDistanceMeters(from, to) {
 function finishMission(outcome) {
   running = false;
   setSensorControlsDisabled(false);
+  setMissionInputsDisabled(false);
   mission.outcome = outcome;
   mission.phase = 'complete';
   $('pause').disabled = true;
@@ -669,6 +760,10 @@ function finishMission(outcome) {
     : 'Mission complete: delivery was aborted and no package was released.';
   $('phase').textContent = outcome === 'delivered' ? 'MISSION COMPLETE' : 'ABORTED · RETURNED TO BASE';
   $('missionStatus').textContent = message;
+  $('demoStatus').textContent = outcome === 'delivered'
+    ? `${mission.delivered} aid packages delivered to the rooftop. Drone landed at base. Simulation complete.`
+    : 'Unsafe drop aborted. All packages retained; drone landed at base. Simulation complete.';
+  refreshStartAvailability();
   logEvent('MISSION_FINISHED', message);
 }
 
@@ -682,47 +777,78 @@ function abortMission(reason) {
   $('approvalText').textContent = 'Release blocked. Returning to base.';
 }
 
+function approveSimulatedRelease() {
+  if (!mission || mission.phase !== 'awaiting_approval' || mission.scenario !== 'success') return;
+  mission.operatorApproved = true;
+  $('approveRelease').disabled = true;
+  $('abortMission').disabled = true;
+  $('approvalText').textContent = mission.autoDemo ? 'Automatic demo decision recorded. Simulating release.' : 'Operator approval recorded. Simulating payload release.';
+  setMissionPhase('releasing', mission.autoDemo
+    ? 'Software demo approved the simulated release. Unloading aid packages one by one.'
+    : 'Operator approved release; virtual latch command acknowledged.');
+}
+
+function awaitReleaseDecision() {
+  setMissionPhase('awaiting_approval', 'Hovering over the rooftop. Reviewing the simulated drop zone.');
+  $('approveRelease').disabled = mission.scenario !== 'success';
+  $('approvalText').textContent = mission.scenario === 'success'
+    ? 'Target confirmed. Review the zone, then approve or abort.'
+    : 'Unsafe drop-zone condition injected. Abort is required.';
+}
+
 function missionPosition() {
   const elapsed = missionClock - mission.phaseStart;
   if (mission.phase === 'loading') {
-    if (elapsed >= 3) setMissionPhase('outbound', 'Flying to the confirmed simulated drop zone.');
-    return { ...selected, alt: 10 };
+    if (elapsed >= 3) setMissionPhase('takeoff', 'Aid loaded. Taking off slowly.');
+    return { ...selected, alt: 3 };
+  }
+  if (mission.phase === 'takeoff') {
+    const fraction = Math.min(elapsed / 4, 1);
+    if (fraction >= 1) setMissionPhase('outbound', 'Flying to the confirmed simulated drop zone.');
+    return { ...selected, alt: 3 + 72 * fraction };
   }
   if (mission.phase === 'outbound') {
     const livePosition = autopilotPosition();
     if (followsSITL()) {
       if (livePosition && groundDistanceMeters(livePosition, mission.target) <= 30) {
-        setMissionPhase('awaiting_approval', 'SITL vehicle is within 30 m of the drop zone. Operator decision required.');
-        if (mission.scenario === 'success') {
-          $('approveRelease').disabled = false;
-          $('approvalText').textContent = 'Target confirmed. Review the zone, then approve or abort.';
-        } else {
-          $('approvalText').textContent = 'Unsafe drop-zone condition injected. Abort is required.';
-        }
+        awaitReleaseDecision();
       }
       return { ...selected, alt: 10 };
     }
     const fraction = Math.min(elapsed / 10, 1);
     if (fraction >= 1) {
-      setMissionPhase('awaiting_approval', 'Holding over the drop zone. Operator decision required.');
-      if (mission.scenario === 'success') {
-        $('approveRelease').disabled = false;
-        $('approvalText').textContent = 'Target confirmed. Review the zone, then approve or abort.';
-      } else {
-        $('approvalText').textContent = 'Unsafe drop-zone condition injected. Abort is required.';
-      }
+      setMissionPhase('descending', 'Three simulated people located. Descending toward the rooftop drop zone.');
     }
-    return { ...interpolate(selected, mission.target, fraction), alt: 120 };
+    return { ...interpolate(selected, mission.target, fraction), alt: 75 };
   }
-  if (mission.phase === 'awaiting_approval') return { ...mission.target, alt: 35 };
-  if (mission.phase === 'releasing') {
-    const fraction = Math.min(elapsed / 3, 1);
-    if (fraction >= 1) {
-      mission.delivered = 1;
-      mission.returnFrom = mission.target;
-      setMissionPhase('returning', 'Simulated release confirmed. Returning to base.');
+  if (mission.phase === 'descending') {
+    const fraction = Math.min(elapsed / 4, 1);
+    if (fraction >= 1) awaitReleaseDecision();
+    return { ...mission.target, alt: 75 - 40 * fraction };
+  }
+  if (mission.phase === 'awaiting_approval') {
+    if (mission.autoDemo && elapsed >= 2) {
+      if (mission.scenario === 'success') approveSimulatedRelease();
+      else abortMission('Automatic demo review found an unsafe drop zone. All aid retained; returning to base.');
     }
     return { ...mission.target, alt: 35 };
+  }
+  if (mission.phase === 'releasing') {
+    const delivered = Math.min(mission.packageCount, Math.floor(elapsed / 3));
+    if (delivered > mission.delivered) {
+      mission.delivered = delivered;
+      logEvent('PACKAGE_DELIVERED', `Simulated rooftop delivery ${delivered}/${mission.packageCount}.`);
+    }
+    if (mission.delivered >= mission.packageCount) {
+      mission.returnFrom = mission.target;
+      setMissionPhase('ascending', 'All packages delivered. Climbing for the return flight.');
+    }
+    return { ...mission.target, alt: 35 };
+  }
+  if (mission.phase === 'ascending') {
+    const fraction = Math.min(elapsed / 4, 1);
+    if (fraction >= 1) setMissionPhase('returning', 'Returning to the aid base.');
+    return { ...mission.target, alt: 35 + 40 * fraction };
   }
   if (mission.phase === 'returning' || mission.phase === 'aborted_return') {
     const livePosition = autopilotPosition();
@@ -734,42 +860,53 @@ function missionPosition() {
     }
     const fraction = Math.min(elapsed / 10, 1);
     const position = interpolate(mission.returnFrom || mission.target, selected, fraction);
-    if (fraction >= 1) finishMission(mission.outcome === 'aborted' ? 'aborted' : 'delivered');
-    return { ...position, alt: fraction >= 1 ? 10 : 120 };
+    if (fraction >= 1) setMissionPhase('landing', 'Arrived at base. Landing slowly.');
+    const startAltitude = mission.returnFrom?.alt ?? 75;
+    return { ...position, alt: startAltitude + (75 - startAltitude) * Math.min(fraction * 3, 1) };
   }
-  return { ...selected, alt: 10 };
+  if (mission.phase === 'landing') {
+    const fraction = Math.min(elapsed / 4, 1);
+    if (fraction >= 1) finishMission(mission.outcome === 'aborted' ? 'aborted' : 'delivered');
+    return { ...selected, alt: 75 - 72 * fraction };
+  }
+  return { ...selected, alt: 3 };
 }
 
 function postState(now, position) {
-  if (now - lastStateSent < 250 || !mission) return;
+  if ((now - lastStateSent < 250 && running) || !mission) return;
   lastStateSent = now;
   const dx = (position.lon - selected.lon) * 111320 * Math.cos(selected.lat * Math.PI / 180);
   const dz = -(position.lat - selected.lat) * 111320;
   const elapsed = missionClock - mission.phaseStart;
   let progress = 0;
-  if (mission.phase === 'loading') progress = Math.min(10, elapsed / 3 * 10);
-  else if (mission.phase === 'outbound') progress = 10 + Math.min(50, elapsed / 10 * 50);
+  if (mission.phase === 'loading') progress = Math.min(5, elapsed / 3 * 5);
+  else if (mission.phase === 'takeoff') progress = 5 + Math.min(5, elapsed / 4 * 5);
+  else if (mission.phase === 'outbound') progress = 10 + Math.min(40, elapsed / 10 * 40);
+  else if (mission.phase === 'descending') progress = 50 + Math.min(10, elapsed / 4 * 10);
   else if (mission.phase === 'awaiting_approval') progress = 60;
-  else if (mission.phase === 'releasing') progress = 60 + Math.min(10, elapsed / 3 * 10);
-  else if (mission.phase === 'returning' || mission.phase === 'aborted_return') progress = 70 + Math.min(30, elapsed / 10 * 30);
+  else if (mission.phase === 'releasing') progress = 60 + Math.min(15, elapsed / (3 * mission.packageCount) * 15);
+  else if (mission.phase === 'ascending') progress = 75 + Math.min(5, elapsed / 4 * 5);
+  else if (mission.phase === 'returning' || mission.phase === 'aborted_return') progress = 80 + Math.min(15, elapsed / 10 * 15);
+  else if (mission.phase === 'landing') progress = 95 + Math.min(5, elapsed / 4 * 5);
   else if (mission.phase === 'complete') progress = 100;
   const telemetryPhase = mission.phase === 'releasing' ? 'unload' : mission.phase;
-  const sequence = mission.phase === 'loading' ? 0 : mission.phase === 'outbound' ? 1 : mission.phase === 'awaiting_approval' ? 2 : mission.phase === 'releasing' ? 3 : mission.phase === 'complete' ? 5 : 4;
+  const sequence = ['loading','takeoff'].includes(mission.phase) ? 0 : ['outbound','descending'].includes(mission.phase) ? 1 : mission.phase === 'awaiting_approval' ? 2 : mission.phase === 'releasing' ? 3 : mission.phase === 'complete' ? 5 : 4;
   const state = {
     source: followsSITL() ? 'sitl-mavlink-with-operator-workflow' : 'earth-simulation',
     phase: telemetryPhase,
     t: missionClock,
-    total_seconds: 26,
+    total_seconds: 41 + 3 * mission.packageCount,
     progress_percent: progress,
     position: { x: dx, y: position.alt, z: dz },
     velocity: { x: 0, y: 0, z: 0 },
     heading_deg: followsSITL() ? (autopilotTelemetry?.heading_deg ?? 0) : 0,
     battery_percent: followsSITL() && autopilotTelemetry?.battery_percent != null
       ? autopilotTelemetry.battery_percent : Math.max(0, 100 - missionClock * 0.35),
-    packages_loaded: mission.packageCount,
-    packages_onboard: mission.packageCount - mission.delivered,
+    packages_loaded: loadedPackages(),
+    packages_onboard: loadedPackages() - mission.delivered,
     packages_delivered: mission.delivered,
-    people_detected: $('falseDetections').checked ? 2 : 1,
+    people_detected: mission.people + ($('falseDetections').checked ? 1 : 0),
+    automatic_demo: mission.autoDemo,
     false_detections_simulated: $('falseDetections').checked ? 1 : 0,
     sensor_effects: mission.sensorEffects,
     site_index: 0,
@@ -777,7 +914,8 @@ function postState(now, position) {
     mission_seq: sequence,
     mission_total: 6,
     target_confirmed: targetConfirmed,
-    operator_release_approved: mission.operatorApproved,
+    operator_release_approved: !mission.autoDemo && mission.operatorApproved,
+    simulated_release_approved: mission.operatorApproved,
     outcome: mission.outcome,
     complete: !running,
     paused,
@@ -787,30 +925,44 @@ function postState(now, position) {
   fetch('/api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) }).catch(() => {});
 }
 
-function animateMission(now) {
-  if (!running || !mission || !drone) return;
+function loadedPackages() {
+  return mission.phase === 'loading'
+    ? Math.min(mission.packageCount,Math.floor((missionClock-mission.phaseStart)/3*mission.packageCount))
+    : mission.packageCount;
+}
+
+function animateMission(now, generation) {
+  if (generation !== replayGeneration || !running || !mission || !drone) return;
   if (!paused) missionClock += (now - lastFrame) / 1000;
   lastFrame = now;
   const scriptedPosition = missionPosition();
   const actualPosition = autopilotPosition() || applyWindDrift(scriptedPosition);
   const position = sensorPosition(actualPosition);
   mission.current = actualPosition;
-  drone.position = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, position.alt);
+  drone.position = missionWorldPosition(position);
   if (followsSITL() && autopilotTelemetry?.heading_deg != null) {
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(autopilotTelemetry.heading_deg), 0, 0);
     drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
   }
   packages.forEach((item, index) => {
     if (index < mission.delivered) {
-      item.position = Cesium.Cartesian3.fromDegrees(mission.target.lon + 0.000025 * index, mission.target.lat, 3);
+      item.position = RescueScene.worldPosition(mission.terrain, { lon: mission.target.lon + 0.000025 * index, lat: mission.target.lat, alt: 12 });
       item.box.material = Cesium.Color.fromCssColorString('#65dec0');
-    } else if (mission.phase === 'releasing' && index === 0) {
-      const fraction = Math.min((missionClock - mission.phaseStart) / 3, 1);
-      item.position = Cesium.Cartesian3.fromDegrees(mission.target.lon, mission.target.lat, 30 - 27 * fraction);
+    } else if (mission.phase === 'releasing' && index === mission.delivered) {
+      const fraction = Math.min(((missionClock - mission.phaseStart) / 3) - index, 1);
+      item.position = RescueScene.worldPosition(mission.terrain, { ...mission.target, alt: 32 - 20 * Math.max(0,fraction) });
     } else {
-      item.position = Cesium.Cartesian3.fromDegrees(position.lon, position.lat, Math.max(4, position.alt - 5 - index * 0.3));
+      const loading = mission.phase === 'loading';
+      item.position = RescueScene.worldPosition(mission.terrain, { lon: position.lon + index * 0.000012,
+        lat: position.lat, alt: loading ? 1 : Math.max(1, position.alt - 2 - index * 0.3) });
     }
   });
+  $('hudPhase').textContent = $('phase').textContent;
+  $('hudPeople').textContent = mission.people;
+  $('hudOnboard').textContent = loadedPackages() - mission.delivered;
+  $('hudDelivered').textContent = mission.delivered;
+  $('hudAltitude').textContent = `${position.alt.toFixed(0)} m`;
+  $('hudDetail').textContent = $('missionStatus').textContent;
   $('delivered').textContent = mission.delivered;
   const battery = followsSITL() && autopilotTelemetry?.battery_percent != null
     ? autopilotTelemetry.battery_percent : Math.max(0, 100 - missionClock * 0.35);
@@ -823,6 +975,7 @@ function animateMission(now) {
       lat: Number(position.lat.toFixed(7)),
       lon: Number(position.lon.toFixed(7)),
       alt: Number(position.alt.toFixed(2)),
+      height_ellipsoid_m: Number(Cesium.Cartographic.fromCartesian(drone.position.getValue()).height.toFixed(2)),
       heading_deg: followsSITL() ? (autopilotTelemetry?.heading_deg ?? 0) : 0,
       battery_percent: Number(Number(battery).toFixed(1)),
       phase: mission.phase,
@@ -834,10 +987,12 @@ function animateMission(now) {
   }
   renderInventory(mission.packageCount, mission.delivered);
   postState(now, position);
-  if (running) requestAnimationFrame(animateMission);
+  if (running) requestAnimationFrame(time => animateMission(time,generation));
 }
 
 function resetMission() {
+  missionPreparation += 1;
+  preparingMission = false;
   replayGeneration += 1;
   running = false;
   paused = false;
@@ -845,6 +1000,7 @@ function resetMission() {
   mission = null;
   sensorTelemetryQueue = [];
   setSensorControlsDisabled(false);
+  setMissionInputsDisabled(false);
   clearMissionEntities();
   $('phase').textContent = 'DRONE AT BASE';
   $('delivered').textContent = '0';
@@ -855,6 +1011,9 @@ function resetMission() {
   $('abortMission').disabled = true;
   $('approveRelease').disabled = true;
   $('approvalText').textContent = 'Available only after arrival and target confirmation.';
+  $('missionHud').hidden = true;
+  $('missionView').disabled = true;
+  $('followDrone').checked = false;
   refreshStartAvailability();
   renderInventory(0, 0);
   logEvent('MISSION_RESET', 'Operator reset the simulation.');
@@ -907,6 +1066,14 @@ $('rejectTarget').onclick = () => {
   logEvent('TARGET_REJECTED', 'Operator rejected the simulated AI candidate; launch blocked.');
 };
 $('start').onclick = buildMission;
+$('runDemo').onclick = runRescueDemo;
+$('missionView').onclick = missionOverview;
+$('followDrone').onchange = () => {
+  if (!viewer || !drone) return;
+  viewer.camera.cancelFlight();
+  if ($('followDrone').checked) viewer.trackedEntity = drone;
+  else missionOverview();
+};
 $('flightSource').onchange = () => {
   $('batteryLabel').textContent = followsSITL() ? 'SITL battery' : 'simulated battery';
   refreshAutopilot();
@@ -928,14 +1095,7 @@ $('pause').onclick = () => {
   if (!paused) lastFrame = performance.now();
   logEvent(paused ? 'MISSION_PAUSED' : 'MISSION_RESUMED', `Operator ${paused ? 'paused' : 'resumed'} the simulation.`);
 };
-$('approveRelease').onclick = () => {
-  if (!mission || mission.phase !== 'awaiting_approval' || mission.scenario !== 'success') return;
-  mission.operatorApproved = true;
-  $('approveRelease').disabled = true;
-  $('abortMission').disabled = true;
-  $('approvalText').textContent = 'Operator approval recorded. Simulating payload release.';
-  setMissionPhase('releasing', 'Operator approved release; virtual latch command acknowledged.');
-};
+$('approveRelease').onclick = approveSimulatedRelease;
 $('abortMission').onclick = () => abortMission('Operator aborted delivery; package retained and return initiated.');
 $('reset').onclick = resetMission;
 $('downloadLog').onclick = () => {
@@ -964,25 +1124,28 @@ function startReplay(record) {
   clearMissionEntities();
   const samples = record.mission.samples;
   mission = record.mission;
-  const positions = samples.flatMap(sample => [sample.lon, sample.lat, sample.alt]);
+  const positions = samples.flatMap(sample => [sample.lon, sample.lat, sample.height_ellipsoid_m ?? sample.alt]);
   routeEntities.push(viewer.entities.add({
     polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions), width: 4, material: Cesium.Color.fromCssColorString('#ffc45c') },
   }));
-  drone = viewer.entities.add({
-    position: Cesium.Cartesian3.fromDegrees(samples[0].lon, samples[0].lat, samples[0].alt),
-    model: { uri: 'https://raw.githubusercontent.com/CesiumGS/cesium/main/Apps/SampleData/models/CesiumDrone/CesiumDrone.glb', minimumPixelSize: 64, maximumScale: 120 },
-    point: { pixelSize: 10, color: Cesium.Color.fromCssColorString('#ffc45c') },
-    label: markerLabel('MISSION REPLAY · SIMULATED', Cesium.Color.fromCssColorString('#ffc45c')),
-  });
+  if (mission.terrain) routeEntities.push(...RescueScene.addSite(viewer,mission.terrain.base,
+    mission.target,mission.terrain,Boolean(mission.terrain.base.demoScene)));
+  const aircraft = RescueScene.addDrone(viewer,Cesium.Cartesian3.fromDegrees(samples[0].lon,
+    samples[0].lat,samples[0].height_ellipsoid_m ?? samples[0].alt),() => performance.now()/1000);
+  drone = aircraft.body;
+  drone.label.text = 'MISSION REPLAY · SIMULATED';
+  routeEntities.push(...aircraft.parts);
   evidence = Array.isArray(record.events) ? record.events : [];
   $('missionLog').textContent = '';
   evidence.forEach(appendEventRow);
   $('phase').textContent = 'REPLAY';
   $('missionStatus').textContent = 'Replaying recorded simulated telemetry at 2× speed. No commands or telemetry are being sent.';
+  $('missionHud').hidden = false;
   $('pause').disabled = true;
   $('abortMission').disabled = true;
   $('approveRelease').disabled = true;
-  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(samples[0].lon, samples[0].lat, Math.max(800, samples[0].alt + 500)) });
+  viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(samples[0].lon, samples[0].lat,
+    Math.max(800,(samples[0].height_ellipsoid_m ?? samples[0].alt)+500)) });
   const started = performance.now();
   const duration = samples.at(-1).t;
   function replayFrame(now) {
@@ -991,13 +1154,19 @@ function startReplay(record) {
     let index = samples.findIndex(sample => sample.t >= replayTime);
     if (index < 0) index = samples.length - 1;
     const sample = samples[index];
-    drone.position = Cesium.Cartesian3.fromDegrees(sample.lon, sample.lat, sample.alt);
+    drone.position = Cesium.Cartesian3.fromDegrees(sample.lon, sample.lat, sample.height_ellipsoid_m ?? sample.alt);
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(sample.heading_deg || 0), 0, 0);
     drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
     $('phase').textContent = `REPLAY · ${(sample.phase || 'mission').replaceAll('_', ' ').toUpperCase()}`;
     $('battery').textContent = `${Number(sample.battery_percent ?? 0).toFixed(0)}%`;
     $('batteryLabel').textContent = 'recorded battery';
     $('delivered').textContent = sample.packages_delivered ?? 0;
+    $('hudPhase').textContent = $('phase').textContent;
+    $('hudPeople').textContent = mission.people ?? 1;
+    $('hudDelivered').textContent = sample.packages_delivered ?? 0;
+    $('hudOnboard').textContent = (mission.packageCount ?? 0) - (sample.packages_delivered ?? 0);
+    $('hudAltitude').textContent = `${sample.alt.toFixed(0)} m`;
+    $('hudDetail').textContent = 'Replaying the recorded software demonstration.';
     if (replayTime < duration) requestAnimationFrame(replayFrame);
     else $('missionStatus').textContent = 'Replay complete. Load another log or reset to prepare a new mission.';
   }
@@ -1018,7 +1187,7 @@ $('replayFile').onchange = async event => {
 
 const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || DEFAULT_CESIUM_TOKEN;
 $('cesiumToken').value = rememberedToken;
-initGlobe(rememberedToken);
+const initialGlobe = initGlobe(rememberedToken);
 refreshEvents();
 setInterval(refreshEvents, 10 * 60 * 1000);
 refreshAutopilot();
@@ -1027,10 +1196,10 @@ setInterval(refreshAutopilot, 400);
 const params = new URLSearchParams(location.search);
 const queryLat = Number(params.get('lat'));
 const queryLon = Number(params.get('lon'));
-if (Number.isFinite(queryLat) && Number.isFinite(queryLon)) {
-  const waitForViewer = setInterval(() => {
-    if (!viewer) return;
-    clearInterval(waitForViewer);
+initialGlobe.then(() => {
+  if (params.get('demo') === '1') {
+    runRescueDemo();
+  } else if (params.has('lat') && params.has('lon') && Number.isFinite(queryLat) && Number.isFinite(queryLon)) {
     setLocation(queryLat, queryLon, params.get('name') || 'Shared mission area', 'live operations map', '±100 m');
-  }, 100);
-}
+  }
+});

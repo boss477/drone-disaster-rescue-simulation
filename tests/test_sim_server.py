@@ -32,7 +32,7 @@ class SimServerTests(unittest.TestCase):
     def test_serves_page_and_runtime_files(self):
         self.assertEqual(self.get("/rescue_simulation.html").status, 200)
         for path in ("/sim/main.js", "/sim/mission.json", "/vendor/three.module.js", "/vendor/three.core.js",
-                     "/earth_rescue.html", "/earth_rescue.js", "/earth_rescue.css"):
+                     "/earth_rescue.html", "/earth_rescue.js", "/earth_rescue_scene.js", "/earth_rescue.css"):
             self.assertEqual(self.get(path).status, 200, path)
 
     def test_private_folders_not_served(self):

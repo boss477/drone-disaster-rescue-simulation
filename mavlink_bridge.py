@@ -206,7 +206,9 @@ def build_messages(
 
 def payload_release_authorized(state: dict[str, Any]) -> bool:
     """A simulated unload may actuate an enabled bench servo only after operator approval."""
-    return state.get("phase") == "unload" and state.get("operator_release_approved") is True
+    return (state.get("phase") == "unload"
+            and state.get("operator_release_approved") is True
+            and not state.get("automatic_demo", False))
 
 
 # ------------------------------------------------------------------ sources ---

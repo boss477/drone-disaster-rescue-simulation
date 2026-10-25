@@ -79,4 +79,11 @@ h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 footer{padding:12px 0 4px}
 a{color:#9ee7ff}
 #cesiumCredit{position:absolute;z-index:4;right:6px;bottom:3px;pointer-events:none}
+.demo-box{padding:12px;background:#12392f;border:1px solid #4bb596;border-radius:9px}
+.demo-box>b{font-size:14px}.demo-box>small{display:block;margin:7px 0;color:#c0d6d0;font-size:11px;line-height:1.5}
+.mission-hud{position:absolute;right:22px;top:22px;z-index:4;width:min(410px,calc(100vw - 480px));padding:16px;background:#091724e8;border:1px solid #47756e;border-radius:12px;pointer-events:none}
+.mission-hud[hidden]{display:none}.mission-hud>small{font-size:10px;letter-spacing:.14em;color:#85d9c4}.mission-hud>b{display:block;margin:7px 0 14px;font-size:20px;color:#e6fff8}
+.mission-hud>div{display:flex;gap:18px}.mission-hud span{font-size:10px;color:#b4cbd1}.mission-hud strong{display:block;font-size:19px;color:#ffda8a;margin-top:3px}.mission-hud p{font-size:11px;line-height:1.5;color:#b4cbd1;margin-bottom:0}
+@media(max-width:900px){.mission-hud{right:10px;top:auto;bottom:36px;width:calc(100vw - 460px);padding:10px}.mission-hud>div{flex-wrap:wrap;gap:9px}.mission-hud>b{font-size:14px}.mission-hud strong{font-size:15px}}
 @media(max-width:650px){#panel{left:8px;top:8px;bottom:8px;width:min(365px,calc(100vw - 16px));padding:13px}.event-list{max-height:120px}}
+@media(max-width:650px){#panel{bottom:auto;max-height:46vh;width:calc(100vw - 16px)}.mission-hud{bottom:30px;right:8px;width:calc(100vw - 16px)}}

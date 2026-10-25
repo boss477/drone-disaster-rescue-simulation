@@ -88,6 +88,8 @@ class TelemetryTests(unittest.TestCase):
         self.assertFalse(mb.payload_release_authorized(state))
         state["operator_release_approved"] = True
         self.assertTrue(mb.payload_release_authorized(state))
+        state["automatic_demo"] = True
+        self.assertFalse(mb.payload_release_authorized(state))
 
     def test_live_map_origin_changes_simulated_telemetry_only(self):
         mission, state = sample_state()
