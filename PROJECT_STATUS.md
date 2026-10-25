@@ -19,7 +19,7 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
-| Optional detailed Earth view | Cesium terrain and OSM 3D buildings; token remains in browser session storage | Token field in `earth_rescue.html` |
+| Detailed Earth view | Cesium terrain and OSM 3D buildings load automatically with a committed public demo token; browser-session override remains available | `earth_rescue.js`, token field in `earth_rescue.html` |
 | Sensor degradation | Switchable camera noise, rain, fog, GPS jitter, scripted wind drift, telemetry delay and false AI alert; effects are logged and do not command PX4 | **Sensor degradation** in `earth_rescue.html` |
 | ODM dashboard integration | Read-only external-data loader for orthophoto, DSM visualization, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
 | Mission evidence | Timestamped decisions plus half-second position, altitude, heading, battery, phase and package samples | **Download JSON** in the dashboard |
@@ -52,7 +52,7 @@ In the browser choose **Follow PX4 / ArduPilot SITL telemetry**, confirm the sim
 ./run_earth_rescue.ps1
 ```
 
-The no-key OpenStreetMap globe and scripted mission work immediately. A Cesium token is optional.
+The scripted mission works immediately. Cesium terrain and 3D buildings load with the committed public demo token; the OpenStreetMap base globe also works without it.
 
 ### Verify the repository
 
@@ -61,7 +61,7 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **95 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings using a session-only token.
+The latest audit passed **95 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings.
 
 ## Work still required
 
@@ -90,10 +90,10 @@ The latest audit passed **95 tests**. The successful, required-abort and degrade
 - Run at least **100 loaded bench cycles** and record command, acknowledgement, observed position, elapsed time and failure reason.
 - Test only on a bench with propellers removed. Real-flight control is outside this repository’s validated scope.
 
-### 4. Optional Cesium enhancement — tested locally
+### 4. Cesium enhancement — tested locally
 
-- A session-only Cesium ion token enabled hosted terrain and OSM 3D buildings during the browser check.
-- Paste the token into each new browser session as needed. The token is optional and must never be committed; the basic OpenStreetMap globe works without it.
+- A public demo Cesium ion token is committed in `earth_rescue.js` at the project owner's request, so hosted terrain and OSM 3D buildings start automatically.
+- The token is visible to anyone with repository access. Limit its Cesium ion permissions and replace or revoke it if needed. The basic OpenStreetMap globe works without it.
 
 ## Explicitly not required
 

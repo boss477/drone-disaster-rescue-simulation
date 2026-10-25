@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 const EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=500';
 const WEATHER = 'https://api.open-meteo.com/v1/forecast';
+// Public demo token, intentionally committed so a fresh clone can load hosted 3D.
+const DEFAULT_CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6Iml4cXdOSE5GdGlIcTFIc0oiLCJqdGkiOiI0NDdiZjExMy0wYTU1LTQwMTYtODA3YS0wOTQ5MjQ1ZDc3MzMiLCJpZCI6NDc1NzQxLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODgwMzk5NzJ9.RvaS4VEJiK--nGKk8ThRcwXbNNUtelpLukkvHnjK2rc';
 const hazardStyle = {
   fire: { color: '#ff6048', title: 'Wildfires' },
   flood: { color: '#36a9ff', title: 'Floods' },
@@ -978,7 +980,7 @@ $('replayFile').onchange = async event => {
   }
 };
 
-const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || '';
+const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || DEFAULT_CESIUM_TOKEN;
 $('cesiumToken').value = rememberedToken;
 initGlobe(rememberedToken);
 refreshEvents();
