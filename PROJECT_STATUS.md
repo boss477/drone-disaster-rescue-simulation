@@ -90,10 +90,10 @@ The latest audit passed **95 tests**. The successful, required-abort and degrade
 - Run at least **100 loaded bench cycles** and record command, acknowledgement, observed position, elapsed time and failure reason.
 - Test only on a bench with propellers removed. Real-flight control is outside this repository’s validated scope.
 
-### 4. Optional Cesium enhancement — waiting for token
+### 4. Optional Cesium enhancement — tested locally
 
-- Paste a Cesium ion token into the dashboard to enable hosted terrain and OSM 3D buildings.
-- The token is optional and must never be committed. The basic OpenStreetMap globe already works without it.
+- A session-only Cesium ion token enabled hosted terrain and OSM 3D buildings during the browser check.
+- Paste the token into each new browser session as needed. The token is optional and must never be committed; the basic OpenStreetMap globe works without it.
 
 ## Explicitly not required
 
@@ -108,7 +108,7 @@ The latest audit passed **95 tests**. The successful, required-abort and degrade
 2. Add the held-out aerial dataset and publish evaluation results.
 3. Finish servo power/feedback and complete 100 documented bench cycles.
 4. Keep the sample OpenDroneMap data on D: and re-run the verifier after any new survey.
-5. Add the optional Cesium token last; it improves visuals but does not affect core correctness.
+5. Use the optional Cesium token in the dashboard for hosted 3D context; it does not affect core correctness.
 
 ## Completion definition
 
