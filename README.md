@@ -149,13 +149,17 @@ The dataset directory must contain separate `train/` and `val/` folders. The too
 
 ## OpenDroneMap survey processing
 
-This repository uses the official [OpenDroneMap](https://github.com/OpenDroneMap/ODM) Docker image rather than implementing photogrammetry. Put an overlapping survey image set in `path\to\odm-data\rescue-survey\images`, then run:
+This repository uses the official [OpenDroneMap](https://github.com/OpenDroneMap/ODM) Docker image rather than implementing photogrammetry. Requires Docker Desktop. Photos and every output stay **outside Git**, by default under `D:\DroneRescueData\odm\`; the launcher refuses a dataset folder inside this repository.
+
+**Sample dataset (not disaster data).** `odm_sample_dataset.json` records the source, license, image count and expected path of the OpenDroneMap *Brighton Beach* sample (18 GPS-tagged DJI JPGs, about 62 MB, BSD-2-Clause per its GitHub page). It is sample imagery for testing the pipeline, **not live disaster data**. Put the images in `D:\DroneRescueData\odmrighton_beach\images`, then:
 
 ```powershell
-./run_open_dronemap.ps1 -DatasetRoot path\to\odm-data -ProjectName rescue-survey -DetailedModel
+./run_open_dronemap.ps1 -ProjectName brighton_beach -DryRun     # check paths, print the Docker command
+./run_open_dronemap.ps1 -ProjectName brighton_beach             # run ODM (-DetailedModel for a finer orthophoto)
+py verify_odm_outputs.py --project-dir D:\DroneRescueData\odmrighton_beach
 ```
 
-The external directory receives ODM's orthophoto, point cloud, elevation products and textured 3D model. These can be large and must remain outside Git. They are reconstruction products from supplied imagery, not live disaster evidence.
+The verifier reports existence, size and path of the four products and exits non-zero if any is missing or not the right file type: orthophoto GeoTIFF (`odm_orthophoto/odm_orthophoto.tif`), DSM GeoTIFF (`odm_dem/dsm.tif`), georeferenced point cloud (`odm_georeferencing/odm_georeferenced_model.laz`) and textured OBJ (`odm_texturing/odm_textured_model_geo.obj`). Use `-DatasetRoot` for another location. The products are reconstructions of supplied imagery, never live disaster evidence.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 
