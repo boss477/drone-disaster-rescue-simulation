@@ -1,13 +1,19 @@
 {
   "name": "Example OpenDroneMap survey",
-  "center": { "lat": 50.823, "lon": -0.138, "height": 900 },
+  "center": { "lat": 46.842657, "lon": -91.994008, "height": 900 },
   "orthophoto": {
-    "url": "orthophoto/{z}/{x}/{y}.png",
+    "url": "brighton_beach_odm/orthophoto_tiles/{z}/{x}/{reverseY}.png",
     "minimumLevel": 12,
     "maximumLevel": 22,
-    "rectangle": [-0.15, 50.81, -0.12, 50.84]
+    "rectangle": [-91.9947, 46.8422, -91.9933, 46.8432]
   },
-  "terrain": { "url": "terrain/" },
-  "pointCloud": { "url": "pointcloud/tileset.json" },
-  "texturedMesh": { "url": "textured-mesh/tileset.json" }
+  "elevationOverlay": {
+    "url": "brighton_beach_odm/dsm_tiles/{z}/{x}/{reverseY}.png",
+    "minimumLevel": 12,
+    "maximumLevel": 22,
+    "rectangle": [-91.9947, 46.8422, -91.9933, 46.8432],
+    "alpha": 0.65
+  },
+  "pointCloud": { "url": "brighton_beach_odm/pointcloud_tiles/tileset.json" },
+  "texturedMesh": { "url": "brighton_beach_odm/3d_tiles/model/tileset.json" }
 }

@@ -14,17 +14,27 @@
   Higher-resolution orthophoto (2 cm/px target).
 .PARAMETER DryRun
   Validate the paths and print the Docker command without running it.
+.PARAMETER WslDistro
+  Optional Docker Desktop-integrated WSL distribution. Auto-detected when available; useful for removable drives.
 #>
 param(
-    [string]$DatasetRoot = 'D:\DroneRescueData\odm',
+    [string]$DatasetRoot = $env:DRONE_ODM_ROOT,
     [string]$ProjectName = 'rescue-survey',
     [switch]$DetailedModel,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$WslDistro = $env:DRONE_ODM_WSL_DISTRO
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 . "$PSScriptRoot\_common.ps1"
 Write-SimulationBanner
+
+if (-not $DatasetRoot -and (Test-Path -LiteralPath 'D:\DroneRescueData\odm' -PathType Container)) {
+    $DatasetRoot = 'D:\DroneRescueData\odm'
+}
+if (-not $DatasetRoot) {
+    throw 'Pass -DatasetRoot or set DRONE_ODM_ROOT. Example: -DatasetRoot D:\DroneRescueData\odm'
+}
 
 if ($ProjectName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
     throw "ProjectName may contain only letters, digits, '.', '_' and '-' (got '$ProjectName')."
@@ -44,22 +54,46 @@ if (-not (Test-Path -LiteralPath $images -PathType Container)) {
 $imageCount = @(Get-ChildItem -LiteralPath $images -File | Where-Object { $_.Extension -match '^\.(jpg|jpeg|tif|tiff|dng)$' }).Count
 if ($imageCount -lt 3) { throw 'OpenDroneMap needs an overlapping survey image set; fewer than 3 supported images were found.' }
 
+if (-not $DryRun -and -not $WslDistro -and (Get-Command wsl -ErrorAction SilentlyContinue)) {
+    $distros = @(& wsl -l -q 2>$null) | ForEach-Object { $_ -replace "`0", '' }
+    foreach ($candidate in @('Ubuntu', 'Ubuntu-24.04-PX4')) {
+        if ($distros -contains $candidate) {
+            & wsl -d $candidate -- docker info --format '{{.ServerVersion}}' *> $null
+            if ($LASTEXITCODE -eq 0) { $WslDistro = $candidate; break }
+        }
+    }
+}
+
 $dockerRoot = $root -replace '\\', '/'
-# --dsm makes ODM write the elevation GeoTIFF; the orthophoto, point cloud (LAZ) and textured OBJ are default outputs.
-$arguments = @('run', '--rm', '-v', "${dockerRoot}:/datasets", 'opendronemap/odm', '--project-path', '/datasets', $ProjectName, '--dsm')
+if ($WslDistro -and $root -match '^([A-Za-z]):\\(.*)$') {
+    $drive = $Matches[1].ToLowerInvariant()
+    $tail = $Matches[2] -replace '\\', '/'
+    $dockerRoot = "/mnt/$drive/$tail"
+    if (-not $DryRun) {
+        & wsl -d $WslDistro -u root -- bash -lc "mkdir -p /mnt/$drive; mountpoint -q /mnt/$drive || mount -t drvfs $($drive.ToUpperInvariant()): /mnt/$drive"
+        if ($LASTEXITCODE -ne 0) { throw "Could not mount drive $($drive.ToUpperInvariant()): in WSL distro $WslDistro." }
+    }
+}
+# Generate the raw survey products plus browser-ready imagery and 3D Tiles used by the dashboard.
+$arguments = @('run', '--rm', '-v', "${dockerRoot}:/datasets", 'opendronemap/odm', '--project-path', '/datasets', $ProjectName, '--dsm', '--tiles', '--3d-tiles', '--gltf')
 if ($DetailedModel) { $arguments += @('--orthophoto-resolution', '2') }
 
 Write-Host "Dataset: $images ($imageCount images)" -ForegroundColor Green
-Write-Host 'Outputs: orthophoto, DSM, georeferenced point cloud and textured 3D model (not committed).'
+Write-Host 'Outputs: orthophoto, DSM, point cloud, textured model, map tiles and Cesium 3D Tiles (not committed).'
 if ($DryRun) {
-    Write-Host ('DRY RUN - would run: docker ' + ($arguments -join ' ')) -ForegroundColor Yellow
+    $prefix = if ($WslDistro) { "wsl -d $WslDistro -- docker" } else { 'docker' }
+    Write-Host ('DRY RUN - would run: ' + $prefix + ' ' + ($arguments -join ' ')) -ForegroundColor Yellow
     exit 0
 }
-if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+if (-not $WslDistro -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
     throw 'Docker was not found. Install Docker Desktop, then retry.'
 }
-& docker @arguments
+if ($WslDistro) { & wsl -d $WslDistro -- docker @arguments } else { & docker @arguments }
 if ($LASTEXITCODE -eq 0) {
     Write-Host "Verify the products with:  py verify_odm_outputs.py --project-dir `"$root\$ProjectName`"" -ForegroundColor Cyan
+    if (-not (Test-Path -LiteralPath (Join-Path $root "$ProjectName\3d_tiles\pointcloud\tileset.json")) -and
+        -not (Test-Path -LiteralPath (Join-Path $root "$ProjectName\pointcloud_tiles\tileset.json"))) {
+        Write-Warning 'ODM did not generate point-cloud 3D Tiles. Install requirements-odm-pointcloud.txt and run convert_odm_pointcloud.py for the browser layer.'
+    }
 }
 exit $LASTEXITCODE

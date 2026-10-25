@@ -1,0 +1,3 @@
+# Optional fallback when ODM's Entwine point-cloud 3D Tiles conversion fails.
+py3dtiles==12.1.1
+laspy[lazrs]>=2.6,<3

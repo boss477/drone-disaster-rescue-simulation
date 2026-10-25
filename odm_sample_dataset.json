@@ -4,15 +4,16 @@
   "purpose": "Sample imagery for testing the OpenDroneMap pipeline. It is NOT live disaster data and says nothing about any real incident.",
   "source_url": "https://github.com/pierotofy/drone_dataset_brighton_beach",
   "index_url": "https://github.com/OpenDroneMap/ODMdata",
-  "license": "BSD-2-Clause (stated in the GitHub repository About section; the LICENSE file text was not reviewed)",
+  "license": "BSD-2-Clause (verified from the downloaded repository LICENSE)",
   "image_count": 18,
   "image_format": "JPG (DJI_0018.JPG - DJI_0035.JPG)",
   "approx_download_size_mb": 62,
-  "gps_tagged": "yes, per the ODMdata index ('coordinates in EXIF'); not yet checked locally",
-  "download_date": null,
-  "download_status": "not_downloaded",
+  "gps_tagged": "18/18 survey JPGs verified with EXIF GPS metadata",
+  "source_commit": "9506a9bf09c9678b7d0b80b014af5b606c8a7255",
+  "download_date": "2026-10-25",
+  "download_status": "downloaded_and_verified",
   "expected_dataset_root": "D:\\DroneRescueData\\odm",
-  "expected_project_name": "brighton_beach",
-  "expected_images_dir": "D:\\DroneRescueData\\odm\\brighton_beach\\images",
-  "note": "Photos, Docker images and every ODM output (GeoTIFF, LAZ/PLY, OBJ) stay outside Git. Fill in download_date and set download_status to 'downloaded' after fetching the images."
+  "expected_project_name": "brighton_beach_odm",
+  "expected_images_dir": "D:\\DroneRescueData\\odm\\brighton_beach_odm\\images",
+  "note": "Photos, Docker images and every ODM output (GeoTIFF, LAZ/PLY, OBJ) stay outside Git. The dataset is sample imagery, not live disaster evidence."
 }

@@ -2,7 +2,7 @@
 
 > **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
-**Project status:** the no-key software demo, operator workflow, mission logs/replay, measured pretrained AI models, QGroundControl output, and real PX4/Gazebo SITL validation are implemented. OpenDroneMap output is being completed on a separate branch; 100 physical latch cycles still require hardware evidence. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
+**Project status:** the no-key software demo, operator workflow, mission logs/replay, measured pretrained AI models, QGroundControl output, real PX4/Gazebo SITL validation, and sample OpenDroneMap reconstruction are implemented. The 100 physical latch cycles still require hardware evidence. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
 
 This repository intentionally integrates established projects instead of rebuilding them. See [UPSTREAM_INTEGRATIONS.md](UPSTREAM_INTEGRATIONS.md) for the PX4, QGroundControl, Ultralytics and OpenDroneMap boundaries plus the exact teammate handoff.
 
@@ -153,23 +153,30 @@ The dataset directory must contain separate `train/` and `val/` folders. The too
 
 This repository uses the official [OpenDroneMap](https://github.com/OpenDroneMap/ODM) Docker image rather than implementing photogrammetry. Requires Docker Desktop. Photos and every output stay **outside Git**, by default under `D:\DroneRescueData\odm\`; the launcher refuses a dataset folder inside this repository.
 
-**Sample dataset (not disaster data).** `odm_sample_dataset.json` records the source, license, image count and expected path of the OpenDroneMap *Brighton Beach* sample (18 GPS-tagged DJI JPGs, about 62 MB, BSD-2-Clause per its GitHub page). It is sample imagery for testing the pipeline, **not live disaster data**. Put the images in `D:\DroneRescueData\odmrighton_beach\images`, then:
+**Sample dataset (not disaster data).** `odm_sample_dataset.json` records the source commit, verified BSD-2-Clause license, image count and expected path of the OpenDroneMap *Brighton Beach* sample (18 locally verified GPS-tagged DJI JPGs, about 62 MB). It is sample imagery for testing the pipeline, **not live disaster data**. The verified local images are in `D:\DroneRescueData\odm\brighton_beach_odm\images`; to reproduce the run:
 
 ```powershell
-./run_open_dronemap.ps1 -ProjectName brighton_beach -DryRun     # check paths, print the Docker command
-./run_open_dronemap.ps1 -ProjectName brighton_beach             # run ODM (-DetailedModel for a finer orthophoto)
-py verify_odm_outputs.py --project-dir D:\DroneRescueData\odmrighton_beach
+./run_open_dronemap.ps1 -ProjectName brighton_beach_odm -DryRun # check paths, print the Docker command
+./run_open_dronemap.ps1 -ProjectName brighton_beach_odm         # run ODM (-DetailedModel for a finer orthophoto)
+py verify_odm_outputs.py --project-dir D:\DroneRescueData\odm\brighton_beach_odm
 ```
 
 The verifier reports existence, size and path of the four products and exits non-zero if any is missing or not the right file type: orthophoto GeoTIFF (`odm_orthophoto/odm_orthophoto.tif`), DSM GeoTIFF (`odm_dem/dsm.tif`), georeferenced point cloud (`odm_georeferencing/odm_georeferenced_model.laz`) and textured OBJ (`odm_texturing/odm_textured_model_geo.obj`). Use `-DatasetRoot` for another location. The products are reconstructions of supplied imagery, never live disaster evidence.
 
-To display those outputs in the Earth dashboard, convert the raw GeoTIFF, LAZ/PLY and OBJ products to the browser formats listed in `odm/README.md`, copy `odm/manifest.example.json` to `D:\DroneRescueData\odm\manifest.json`, and run:
+The launcher also requests browser-ready map tiles, 3D Tiles and GLB output. ODM 3.6.2 generated the mesh tiles but its bundled Entwine converter failed on this sample's point cloud. An optional fallback uses Py3DTiles:
+
+```powershell
+py -m pip install -r requirements-odm-pointcloud.txt
+py convert_odm_pointcloud.py --project-dir D:\DroneRescueData\odm\brighton_beach_odm
+```
+
+The fallback reads the LAZ coordinate system, converts to Earth-centered coordinates, and scales its 8-bit colors for display. It skips a completed tileset and refuses output inside the repository. Copy `odm/manifest.example.json` to `D:\DroneRescueData\odm\manifest.json`, adjust its project name and coordinates if needed, and run:
 
 ```powershell
 ./run_earth_rescue.ps1 -OdmRoot D:\DroneRescueData\odm
 ```
 
-Press **Load ODM** to add the selected orthophoto, elevation terrain, point cloud and textured mesh. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible.
+Press **Load ODM** to add the selected orthophoto, DSM elevation overlay, point cloud and textured mesh. The DSM overlay is a color visualization, not geometric terrain. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible. A Cesium ion token is optional; paste it into the dashboard's password field and click **Enable 3D** for hosted terrain and buildings. It stays in that browser session and is never committed.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 

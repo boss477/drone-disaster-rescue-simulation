@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+import shutil
 from pathlib import Path
 
 import verify_odm_outputs as vo
@@ -23,6 +24,25 @@ def make_project(base: Path, *, skip=()):
         path = base / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
+    if "textured_model" not in skip:
+        texture_dir = base / "odm_texturing"
+        (texture_dir / "x.mtl").write_text("newmtl x\nmap_Kd texture.jpg\n", encoding="utf-8")
+        (texture_dir / "texture.jpg").write_bytes(b"fake-jpeg-data")
+    return base
+
+
+def make_browser_products(base: Path):
+    files = (
+        "orthophoto_tiles/1/0/0.png",
+        "dsm_tiles/1/0/0.png",
+        "pointcloud_tiles/tileset.json",
+        "3d_tiles/model/tileset.json",
+        "odm_texturing/odm_textured_model_geo.glb",
+    )
+    for relative in files:
+        path = base / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"test")
     return base
 
 
@@ -66,6 +86,18 @@ class VerifyOutputsTests(unittest.TestCase):
             (base / "odm_dem/dsm.tif").write_bytes(b"II*\x00")
             self.assertFalse(vo.verify(base)["products"]["dsm"]["ok"])
 
+    def test_textured_model_requires_material_and_texture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = make_project(Path(tmp))
+            (base / "odm_texturing/texture.jpg").unlink()
+            self.assertFalse(vo.verify(base)["products"]["textured_model"]["ok"])
+
+    def test_browser_ready_products_are_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report = vo.verify(make_browser_products(make_project(Path(tmp))))
+        self.assertTrue(report["browser_ready"])
+        self.assertEqual(report["browser_products"]["orthophoto_tiles"]["file_count"], 1)
+
 
 class ManifestAndRepoSafetyTests(unittest.TestCase):
     def setUp(self):
@@ -84,7 +116,29 @@ class ManifestAndRepoSafetyTests(unittest.TestCase):
         self.assertIn("inside the repository", script)
         self.assertIn("ProjectName", script)
         self.assertIn("--dsm", script)
+        self.assertIn("--tiles", script)
+        self.assertIn("--3d-tiles", script)
+        self.assertIn("--gltf", script)
         self.assertIn("DryRun", script)
+        self.assertIn("DRONE_ODM_WSL_DISTRO", script)
+
+    @unittest.skipUnless(shutil.which("powershell") or shutil.which("pwsh"), "PowerShell is unavailable")
+    def test_launcher_dry_run_and_repo_path_refusal(self):
+        shell = shutil.which("powershell") or shutil.which("pwsh")
+        script = ROOT / "run_open_dronemap.ps1"
+        rejected = subprocess.run([shell, "-NoProfile", "-File", script, "-DatasetRoot", ROOT,
+                                   "-ProjectName", "test", "-DryRun"], capture_output=True, text=True)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("inside the repository", rejected.stderr + rejected.stdout)
+        with tempfile.TemporaryDirectory() as tmp:
+            images = Path(tmp) / "test" / "images"
+            images.mkdir(parents=True)
+            for index in range(3):
+                (images / f"{index}.jpg").write_bytes(b"image")
+            accepted = subprocess.run([shell, "-NoProfile", "-File", script, "-DatasetRoot", tmp,
+                                       "-ProjectName", "test", "-DryRun"], capture_output=True, text=True)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr + accepted.stdout)
+        self.assertIn("DRY RUN", accepted.stdout)
 
     def test_no_large_odm_products_tracked_by_git(self):
         try:
@@ -97,8 +151,9 @@ class ManifestAndRepoSafetyTests(unittest.TestCase):
 
     def test_gitignore_blocks_odm_products(self):
         text = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("odm_data/", text)
         for pattern in ("*.laz", "*.ply", "*.tif", "*.obj"):
-            self.assertIn(pattern, text)
+            self.assertNotIn(pattern, text)
 
 
 if __name__ == "__main__":

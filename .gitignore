@@ -18,11 +18,5 @@ models/*.pth
 *.onnx
 *.safetensors
 
-# OpenDroneMap products and survey photos live outside Git (D:\DroneRescueData\odm)
-*.laz
-*.las
-*.ply
-*.tif
-*.tiff
-*.obj
-*.mtl
+# OpenDroneMap products and survey photos live outside Git (D:\DroneRescueData\odm).
+# Do not globally ignore these extensions: legitimate small project assets may use them.

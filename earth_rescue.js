@@ -44,7 +44,7 @@ let autopilotConnected = false;
 let autopilotTelemetry = null;
 let replayGeneration = 0;
 let sensorTelemetryQueue = [];
-let odmImageryLayer = null;
+let odmImageryLayers = [];
 let odmPrimitives = [];
 let baseTerrainProvider = null;
 
@@ -158,8 +158,10 @@ function osmLayer() {
 }
 
 function removeOdmLayers(showStatus = true) {
-  if (viewer && odmImageryLayer) {
-    try { viewer.imageryLayers.remove(odmImageryLayer, true); } catch (_) { /* viewer may have been rebuilt */ }
+  if (viewer) {
+    odmImageryLayers.forEach(layer => {
+      try { viewer.imageryLayers.remove(layer, true); } catch (_) { /* viewer may have been rebuilt */ }
+    });
   }
   if (viewer) {
     odmPrimitives.forEach(item => {
@@ -167,7 +169,7 @@ function removeOdmLayers(showStatus = true) {
     });
     if (baseTerrainProvider) viewer.terrainProvider = baseTerrainProvider;
   }
-  odmImageryLayer = null;
+  odmImageryLayers = [];
   odmPrimitives = [];
   $('clearOdm').disabled = true;
   if (showStatus) $('odmStatus').textContent = 'ODM layers cleared.';
@@ -201,9 +203,25 @@ async function loadOdmLayers() {
       if (Array.isArray(manifest.orthophoto.rectangle) && manifest.orthophoto.rectangle.length === 4) {
         options.rectangle = Cesium.Rectangle.fromDegrees(...manifest.orthophoto.rectangle);
       }
-      odmImageryLayer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(options));
-      odmImageryLayer.alpha = manifest.orthophoto.alpha ?? 0.9;
+      const layer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(options));
+      layer.alpha = manifest.orthophoto.alpha ?? 0.9;
+      odmImageryLayers.push(layer);
       loaded.push('orthophoto');
+    }
+    if ($('odmTerrain').checked && manifest.elevationOverlay?.url) {
+      const options = {
+        url: odmAssetUrl(manifest.elevationOverlay.url, manifestUrl),
+        minimumLevel: manifest.elevationOverlay.minimumLevel ?? 0,
+        maximumLevel: manifest.elevationOverlay.maximumLevel ?? 22,
+        credit: manifest.credit || 'OpenDroneMap survey',
+      };
+      if (Array.isArray(manifest.elevationOverlay.rectangle) && manifest.elevationOverlay.rectangle.length === 4) {
+        options.rectangle = Cesium.Rectangle.fromDegrees(...manifest.elevationOverlay.rectangle);
+      }
+      const layer = viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider(options));
+      layer.alpha = manifest.elevationOverlay.alpha ?? 0.65;
+      odmImageryLayers.push(layer);
+      loaded.push('elevation overlay');
     }
     if ($('odmTerrain').checked && manifest.terrain?.url) {
       viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(odmAssetUrl(manifest.terrain.url, manifestUrl));
@@ -232,7 +250,7 @@ async function loadOdmLayers() {
     }
   } catch (error) {
     removeOdmLayers(false);
-    $('odmStatus').textContent = `ODM unavailable: ${error.message || error}. Generate/convert the friend branch outputs first.`;
+    $('odmStatus').textContent = `ODM unavailable: ${error.message || error}. Check the external manifest and generated layer files.`;
   }
 }
 
@@ -241,7 +259,7 @@ async function initGlobe(token = '') {
   const previous = selected;
   if (viewer && !viewer.isDestroyed()) viewer.destroy();
   viewer = null;
-  odmImageryLayer = null;
+  odmImageryLayers = [];
   odmPrimitives = [];
   try {
     if (token) Cesium.Ion.defaultAccessToken = token;

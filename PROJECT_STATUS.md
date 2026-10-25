@@ -21,13 +21,13 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
 | Optional detailed Earth view | Cesium terrain and OSM 3D buildings; token remains in browser session storage | Token field in `earth_rescue.html` |
 | Sensor degradation | Switchable camera noise, rain, fog, GPS jitter, scripted wind drift, telemetry delay and false AI alert; effects are logged and do not command PX4 | **Sensor degradation** in `earth_rescue.html` |
-| ODM dashboard integration | Read-only external-data loader for Cesium-ready orthophoto, terrain, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
+| ODM dashboard integration | Read-only external-data loader for orthophoto, DSM visualization, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
 | Mission evidence | Timestamped decisions plus half-second position, altitude, heading, battery, phase and package samples | **Download JSON** in the dashboard |
 | Mission replay | Replays a saved mission route, phase, battery and delivery count at 2× without sending commands | **Replay a mission JSON** in the dashboard |
 | Recorded footage AI | YOLO person candidates from a video/camera; explicit confirm/reject; CSV evidence | `./run_recorded_footage.ps1 <video>` |
 | AI evaluation | Held-out YOLO-format evaluator reports TP, FP, FN, precision, recall and FPS | `evaluate_aerial_people.py` |
 | Dataset provenance | Records external dataset source, version, license, split counts and an inventory digest; blocks train/validation filename overlap | `dataset_manifest.py` |
-| Aerial reconstruction | Runs the official OpenDroneMap Docker image on an external overlapping image set | `run_open_dronemap.ps1` |
+| Aerial reconstruction | Official OpenDroneMap processed 18 GPS-tagged sample images into verified GeoTIFFs, LAZ, textured OBJ/GLB, map tiles and mesh tiles; Py3DTiles produced point-cloud tiles after ODM's Entwine converter failed | `run_open_dronemap.ps1`, `verify_odm_outputs.py`, `convert_odm_pointcloud.py` |
 | QGroundControl output | MAVLink position, battery, progress, people, packages, candidate and release-approval values | `mavlink_bridge.py`, UDP 14550 |
 | Autopilot input | Receive-only PX4/ArduPilot telemetry drives Cesium position, heading, battery, mode, armed and GPS state | `sitl_telemetry_adapter.py` |
 | Real autopilot simulation | PX4 v1.17.0 X500 in Gazebo Harmonic on Ubuntu 24.04 WSL; QGroundControl plus takeoff/RTL, geofence, low-battery and GPS-loss checks | `evaluation_results/px4_sitl_v1_17_verification.json` |
@@ -61,7 +61,7 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **83 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl.
+The latest audit passed **95 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings using a session-only token.
 
 ## Work still required
 
@@ -107,7 +107,7 @@ The latest audit passed **83 tests**. The successful, required-abort and degrade
 1. Run and preserve one successful and one aborted mock-MAVLink mission log.
 2. Add the held-out aerial dataset and publish evaluation results.
 3. Finish servo power/feedback and complete 100 documented bench cycles.
-4. Merge and verify the separate OpenDroneMap output branch when it is ready.
+4. Keep the sample OpenDroneMap data on D: and re-run the verifier after any new survey.
 5. Add the optional Cesium token last; it improves visuals but does not affect core correctness.
 
 ## Completion definition
