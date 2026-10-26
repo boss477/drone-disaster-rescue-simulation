@@ -519,6 +519,7 @@ function markerLabel(text, color) {
 
 function setLocation(lat, lon, name, source, uncertainty) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || running) return;
+  if (mission) resetMission();
   missionPreparation += 1;
   preparingMission = false;
   selected = { lat, lon, name, source, uncertainty, timestamp: new Date().toISOString() };
@@ -603,10 +604,11 @@ function missionWorldPosition(position) {
 
 function missionOverview() {
   if (!viewer || !mission) return;
+  if (viewer.scene.mode !== Cesium.SceneMode.SCENE3D) viewer.scene.morphTo3D(0);
   viewer.camera.cancelFlight();
   $('followDrone').checked = false;
   viewer.trackedEntity = undefined;
-  const center = interpolate(selected, mission.target, 0.5);
+  const center = interpolate(mission.base || selected, mission.target, 0.5);
   const height = RescueScene.groundHeight(mission.terrain, center) + 25;
   viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(center.lon,center.lat,height),
     new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-42),
@@ -656,6 +658,7 @@ async function buildMission(autoDemo = false) {
   clearMissionEntities();
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
   mission = {
+    base,
     target,
     terrain,
     autoDemo,

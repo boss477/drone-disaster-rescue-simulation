@@ -55,10 +55,11 @@ class Handler(SimpleHTTPRequestHandler):
     autopilot_state = SimState()
 
     def __init__(self, *args, sim_state: SimState, autopilot_state: SimState,
-                 odm_root: Path | None = None, **kwargs):
+                 odm_root: Path | None = None, vision=None, **kwargs):
         self.sim_state = sim_state
         self.autopilot_state = autopilot_state
         self.odm_root = odm_root.resolve() if odm_root else None
+        self.vision = vision
         super().__init__(*args, directory=str(PROJECT_DIR), **kwargs)
 
     def _json(self, payload: dict, status: int = 200) -> None:
@@ -102,6 +103,8 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(self.sim_state.get())
         elif path == "/api/autopilot":
             self._json(self.autopilot_state.get())
+        elif path == "/api/vision":
+            self._json(self.vision.snapshot())
         elif path.startswith("/odm-data/"):
             self._serve_odm_file(path)
         elif path.split("/")[1:2] and path.split("/")[1] in BLOCKED_TOP_LEVEL:
@@ -111,6 +114,16 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = self.path.split("?")[0]
+        if path == "/api/vision":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 10 * 1024 * 1024:
+                    raise ValueError("Upload an image smaller than 10 MB.")
+                accepted = self.vision.start(self.rfile.read(length))
+                self._json({"accepted": accepted}, 202 if accepted else 409)
+            except Exception as exc:
+                self._json({"error": str(exc)}, 400)
+            return
         stores = {"/api/state": self.sim_state, "/api/autopilot": self.autopilot_state}
         if path not in stores:
             self._json({"error": "not found"}, 404)
@@ -136,8 +149,10 @@ class Handler(SimpleHTTPRequestHandler):
 def make_server(port: int = DEFAULT_PORT, sim_state: SimState | None = None,
                 autopilot_state: SimState | None = None,
                 odm_root: Path | None = None) -> ThreadingHTTPServer:
+    from vision_service import VisionService
     handler = partial(Handler, sim_state=sim_state or SimState(),
-                      autopilot_state=autopilot_state or SimState(), odm_root=odm_root)
+                      autopilot_state=autopilot_state or SimState(), odm_root=odm_root,
+                      vision=VisionService())
     return ThreadingHTTPServer(("127.0.0.1", port), handler)
 
 

@@ -14,6 +14,18 @@
   <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
   <h1>Rescue mission</h1>
   <p class="notice">REAL MAP + LIVE PUBLIC HAZARD DATA · DRONE, ROUTE, PEOPLE & PAYLOAD ARE SIMULATED</p>
+  <section class="keybox" id="visionPanel">
+    <b>AI image review · CLIP + YOLO</b>
+    <small>Analyse the same photo for disaster type and possible people. Results are AI estimates for operator review.</small>
+    <input id="visionFile" type="file" accept="image/*" aria-label="Choose image for disaster and person detection">
+    <div class="buttonrow"><button id="analyseImage" disabled>Analyse image</button><button id="cameraCapture" class="quiet">Camera</button><button id="stopCamera" class="quiet" hidden>Stop camera</button></div>
+    <video id="visionCamera" autoplay muted playsinline hidden></video>
+    <canvas id="visionPreview" hidden></canvas>
+    <div id="visionStatus" class="status" role="status">Choose an image, or capture a camera frame. Models load once and are reused.</div>
+    <div id="visionResults"></div>
+    <button id="useVisionArea" class="quiet" disabled>Attach review to selected map area</button>
+    <small>Click the map to choose an approximate area. Photo detections have no verified GPS location. Confirm the simulated candidate before launching.</small>
+  </section>
   <section class="demo-box">
     <b>Watch a complete 3D rescue</b>
     <small>Three people on a rooftop, three aid packages, slow flight and return to base. The demo makes simulated review decisions automatically.</small>
@@ -91,8 +103,10 @@
   <p id="hudDetail">Preparing the rescue scene.</p>
 </div>
 <div id="cesiumCredit"></div>
+<button id="restore3d" class="restore-3d">3D rescue view</button>
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
 <script src="earth_rescue_scene.js"></script>
 <script src="earth_rescue.js"></script>
+<script src="earth_rescue_vision.js"></script>
 </body>
 </html>

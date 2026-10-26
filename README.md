@@ -551,3 +551,22 @@ sha256sum -c CHECKSUMS.sha256
 - Raspberry Pi camera hardware installation: https://www.raspberrypi.com/documentation/accessories/camera.html
 - PyTorch Linux installation: https://docs.pytorch.org/get-started/locally/
 - Torchvision SSDLite model details: https://docs.pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html
+
+## Unified AI review and 3D rescue dashboard
+
+Run `./run_earth_rescue.ps1` and use **AI image review · CLIP + YOLO** in the same
+dashboard as the Cesium mission. Upload an image or enable **Camera**, then
+**Capture frame**, and click **Analyse image**. CLIP estimates the disaster
+category and all scores; YOLO marks possible people on that same image.
+The first analysis downloads pretrained weights; later analyses reuse models
+in memory and cached weights on disk. Install dependencies with
+`py -m pip install -r requirements-demo.txt`. Uploaded images remain in memory.
+
+Click a map area and **Attach review to selected map area** to record the AI
+results in the mission evidence log. Confirm the simulated candidate and launch
+using the existing controls. Photo pixels have no verified GPS coordinates;
+the operator places the area, and the 3D people and deliveries stay simulated.
+Camera capture analyses a still frame, not a continuous live video stream.
+Use **3D rescue view** at the lower right to restore the angled mission scene,
+or start the complete training scene if there is no mission yet. Clicking a new
+map area after completion clears the old mission and its HUD.

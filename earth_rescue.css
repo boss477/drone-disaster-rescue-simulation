@@ -77,6 +77,8 @@ h2{font-size:13px;color:#a9dcec;margin:3px 0 9px}
 .mission-log span{grid-column:1/3;color:#aabcc7;line-height:1.35}
 .weather-note{font-size:10px;line-height:1.45;color:#9bb1c0}
 footer{padding:12px 0 4px}
+#visionFile{width:100%;margin:8px 0}#visionPreview,#visionCamera{width:100%;margin-top:10px;border-radius:6px}#visionResults{font-size:12px;line-height:1.4}#visionResults p{margin:5px 0}#visionPanel .buttonrow{flex-wrap:wrap}
+.restore-3d{position:absolute;right:22px;bottom:38px;z-index:6;box-shadow:0 4px 20px #0008}
 a{color:#9ee7ff}
 #cesiumCredit{position:absolute;z-index:4;right:6px;bottom:3px;pointer-events:none}
 .demo-box{padding:12px;background:#12392f;border:1px solid #4bb596;border-radius:9px}

@@ -70,6 +70,13 @@ class SimServerTests(unittest.TestCase):
             urllib.request.urlopen(request, timeout=5)
         self.assertEqual(ctx.exception.code, 400)
 
+    def test_vision_rejects_invalid_image(self):
+        self.assertEqual(json.load(self.get('/api/vision'))['status'], 'idle')
+        request = urllib.request.Request(self.base + '/api/vision', data=b'not an image', method='POST')
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(request, timeout=5)
+        self.assertEqual(ctx.exception.code, 400)
+
     def test_serves_external_odm_folder_without_exposing_parent(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "odm"

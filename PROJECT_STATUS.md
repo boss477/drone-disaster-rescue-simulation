@@ -1,6 +1,6 @@
 # Project status and remaining work
 
-Last audited: **25 October 2026**
+Last audited: **26 October 2026**
 
 This is the source-of-truth checklist for the rescue-drone project. “Verified” means the repository contains the implementation and it has been exercised locally or covered by automated tests. Real incident data, AI detections, simulated flight, and physical hardware evidence are kept separate.
 
@@ -15,6 +15,7 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Area | Current implementation | Evidence / entry point |
 | --- | --- | --- |
 | Disaster classification | Zero-shot CLIP categories: flood, fire, earthquake damage, landslide, storm damage, normal and uncertain | `disaster_zero_shot.py`, `image_upload_demo.py` |
+| Unified browser AI review | One upload or camera frame runs CLIP and YOLO, shows all scores and annotated person candidates, and records the review against an operator-selected map area; actual photo detections remain distinct from scripted rooftop people | `vision_service.py`, `earth_rescue_vision.js`, `tests/earth_vision_browser_check.py` |
 | First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
