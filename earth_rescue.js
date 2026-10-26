@@ -187,6 +187,9 @@ function odmAssetUrl(path, manifestUrl) {
 }
 
 async function loadOdmLayers() {
+  if ($('worldRenderer').value === 'nasa' && window.RescueWorld) {
+    return window.RescueWorld.loadODM($('odmManifest').value.trim());
+  }
   if (!viewer) return;
   const manifestUrl = $('odmManifest').value.trim();
   if (!manifestUrl) {
@@ -331,6 +334,7 @@ async function initGlobe(token = '') {
     });
     viewer.resolutionScale = detailed ? 1 : Math.min(1, 1 / (window.devicePixelRatio || 1));
     viewer.scene.postProcessStages.fxaa.enabled = detailed;
+    viewer.useDefaultRenderLoop = $('worldRenderer').value !== 'nasa';
     viewer.scene.preUpdate.addEventListener(keepCameraFrustumFinite);
     viewer.scene.renderError.addEventListener(recoverFromRenderError);
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#07111c');
@@ -532,6 +536,7 @@ function setLocation(lat, lon, name, source, uncertainty) {
   missionPreparation += 1;
   preparingMission = false;
   selected = { lat, lon, name, source, uncertainty, timestamp: new Date().toISOString() };
+  window.RescueWorld?.selectArea(selected);
   targetConfirmed = false;
   $('selection').textContent = `${name} · ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
   $('provenance').textContent = `SOURCE: ${source} · TIME: ${new Date(selected.timestamp).toLocaleString()} · UNCERTAINTY: ${uncertainty}`;
@@ -563,6 +568,7 @@ function flyToPreset(key) {
   const preset = viewPresets[key];
   if (!preset || !viewer || running) return;
   setLocation(preset.lat, preset.lon, preset.name, '3D view preset', 'visualization only');
+  window.RescueWorld?.flyToPreset(preset);
   const camera = preset.camera;
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(camera.lon, camera.lat, camera.height),
@@ -627,6 +633,7 @@ function missionOverview() {
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   viewer.camera.setView({destination,orientation:{heading:0,pitch,roll:0}});
   viewer.scene.requestRender();
+  window.RescueWorld?.missionView();
 }
 
 async function runRescueDemo() {
@@ -1066,15 +1073,29 @@ $('loadCesium').onclick = () => {
   }
   sessionStorage.setItem('rescueCesiumToken', token);
   $('detailedEarth').checked = true;
+  if ($('worldRenderer').value === 'nasa' && window.RescueWorld) {
+    window.RescueWorld.loadWorld(true);
+    return;
+  }
   safeMapActive = false;
   initGlobe(token);
 };
 $('detailedEarth').onchange = () => {
+  if ($('worldRenderer').value === 'nasa' && window.RescueWorld) {
+    window.RescueWorld.loadWorld($('detailedEarth').checked);
+    return;
+  }
   resetMission();
   initGlobe($('cesiumToken').value.trim() || DEFAULT_CESIUM_TOKEN);
 };
 $('loadOdm').onclick = loadOdmLayers;
-$('clearOdm').onclick = () => removeOdmLayers();
+$('clearOdm').onclick = () => {
+  if ($('worldRenderer').value === 'nasa' && window.RescueWorld) {
+    window.RescueWorld.clearCustom();
+    $('clearOdm').disabled = true;
+    $('odmStatus').textContent = 'NASA ODM layer cleared.';
+  } else removeOdmLayers();
+};
 $('toggleSensors').onclick = () => {
   const enable = enabledSensorEffects().length === 0;
   sensorControlIds.forEach(id => { $(id).checked = enable; });
@@ -1233,6 +1254,7 @@ $('replayFile').onchange = async event => {
 
 const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || DEFAULT_CESIUM_TOKEN;
 $('cesiumToken').value = rememberedToken;
+if (new URLSearchParams(location.search).get('renderer') === 'cesium') $('worldRenderer').value = 'cesium';
 const initialGlobe = initGlobe(rememberedToken);
 refreshEvents();
 setInterval(refreshEvents, 10 * 60 * 1000);

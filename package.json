@@ -1,0 +1,31 @@
+{
+  "name": "drone-project",
+  "version": "1.0.0",
+  "description": "Drone rescue simulation with NASA 3D Tiles world and AI review",
+  "main": "earth_rescue.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "py -m unittest discover -s tests",
+    "build:world": "node scripts/build_nasa_world.cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boss477/drone-disaster-rescue-simulation.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/boss477/drone-disaster-rescue-simulation/issues"
+  },
+  "homepage": "https://github.com/boss477/drone-disaster-rescue-simulation#readme",
+  "dependencies": {
+    "3d-tiles-renderer": "0.5.3",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  },
+  "private": true
+}

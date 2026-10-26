@@ -580,9 +580,10 @@ in the equatorial Pacific and can influence India's monsoon; reduced rainfall
 is not guaranteed. See [NOAA's ENSO explanation](https://www.noaa.gov/understanding-el-nino).
 Separate coastal Peru wet and Indonesia dry scenarios are also available.
 
-Fast mode starts with local 3D geometry and a schematic grid instead of waiting
-for hosted terrain/buildings. Enable **Detailed Earth** for actual online map
-tiles, terrain and buildings. CesiumJS itself still loads from the CDN. Choose
+The NASA view starts local 3D geometry while OSM imagery streams in the background.
+The Cesium reference view starts with a schematic grid. Enable **Detailed Earth**
+for hosted terrain and buildings. The mission controller's CesiumJS dependency
+still loads from the CDN. Choose
 1×, 2× or 4× playback; SITL telemetry keeps its original timing. AI models run
 independently, remain in memory, and reuse the previous successful image result
 when the identical image is analysed again. The first model load still takes time.
@@ -590,3 +591,33 @@ when the identical image is analysed again. The first model load still takes tim
 Browser check: `py tests/earth_fast_climate_browser_check.py` verifies startup with
 ion requests stalled and completes the India mission at 4× using real elapsed time.
 Optional real inference check: `py tests/vision_live_check.py`.
+
+## NASA 3D Tiles world renderer
+
+The dashboard defaults to **NASA-AMMOS 3D Tiles · Three.js**, using
+[3DTilesRendererJS](https://github.com/NASA-AMMOS/3DTilesRendererJS) version 0.5.3
+and Three.js 0.180.0. Its runtime and Draco decoder are bundled locally.
+The current mission supplies the same drone, package and actor positions to this
+view; candidate approval, image review, telemetry and evidence stay in the existing
+workflow. The hidden Cesium reference view stops its render loop to avoid drawing
+two worlds at once. Select **Cesium reference view** to return to it.
+
+- **Whole Earth** zooms out; **Mission view** returns to the local mission.
+- OpenStreetMap imagery streams onto a globe in the background. This is a map
+  texture, not satellite photography or a global textured building model.
+- **Detailed Earth** adds Cesium ion quantized-mesh terrain and OSM 3D buildings
+  through NASA's renderer using the existing token. Availability and detail vary.
+- **3D Tiles / ODM tileset URL** loads a georeferenced `tileset.json` over HTTP(S).
+  Relative `/odm-data/...` paths use the existing read-only survey server mapping.
+  External hosts need CORS permission. **Load ODM** uses the manifest's selected
+  tiled mesh or point cloud; its orthophoto and DSM overlays use the reference view.
+- The synthetic rescue settlement and climate/fire markers are explicitly simulated.
+  NASA's library supplies rendering, not hazard feeds, terrain data or AI models.
+
+Run normally with `./run_earth_rescue.ps1`. Node/npm is needed only to change and
+rebuild the world renderer: `npm ci`, then `npm run build:world`.
+Source: `world/nasa_world.js`; attribution: `vendor/NASA-WORLD-NOTICE.md`.
+
+Browser integration: `py tests/nasa_world_browser_check.py` checks the actual
+renderer, a generated synthetic georeferenced glTF tile, mission completion and
+renderer switching. Add `--details` to verify live hosted terrain/building tiles.

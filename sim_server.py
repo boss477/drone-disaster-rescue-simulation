@@ -27,7 +27,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 DEFAULT_PORT = 8765
 MAX_STATE_BYTES = 16 * 1024
 STATE_MAX_AGE_SECONDS = 3.0
-BLOCKED_TOP_LEVEL = {".git", ".venv", "models", "tests", "inspection_reports"}  # never served
+BLOCKED_TOP_LEVEL = {".git", ".venv", "models", "tests", "inspection_reports", "node_modules"}  # never served
 
 
 class SimState:

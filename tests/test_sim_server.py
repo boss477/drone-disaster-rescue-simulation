@@ -32,11 +32,12 @@ class SimServerTests(unittest.TestCase):
     def test_serves_page_and_runtime_files(self):
         self.assertEqual(self.get("/rescue_simulation.html").status, 200)
         for path in ("/sim/main.js", "/sim/mission.json", "/vendor/three.module.js", "/vendor/three.core.js",
-                     "/earth_rescue.html", "/earth_rescue.js", "/earth_rescue_scene.js", "/earth_rescue.css"):
+                     "/earth_rescue.html", "/earth_rescue.js", "/earth_rescue_scene.js", "/earth_rescue.css",
+                     "/vendor/nasa-world.js", "/vendor/draco/draco_decoder.wasm"):
             self.assertEqual(self.get(path).status, 200, path)
 
     def test_private_folders_not_served(self):
-        for path in ("/.git/config", "/models/README.md"):
+        for path in ("/.git/config", "/models/README.md", "/node_modules/three/package.json"):
             with self.assertRaises(urllib.error.HTTPError) as ctx:
                 self.get(path)
             self.assertEqual(ctx.exception.code, 404, path)

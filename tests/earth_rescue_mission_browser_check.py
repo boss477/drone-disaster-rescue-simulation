@@ -41,7 +41,7 @@ def main():
         try:
             page = browser.new_page(viewport={"width": 1600, "height": 1000})
             page.on("pageerror", lambda error: errors.append(str(error)))
-            page.goto(url, wait_until="domcontentloaded")
+            page.goto(url + ('&' if '?' in url else '?') + 'renderer=cesium', wait_until="domcontentloaded")
             page.wait_for_function("typeof viewer !== 'undefined' && viewer && !document.getElementById('runDemo').disabled", timeout=45000)
             page.locator("#runDemo").click()
             freeze_for_checks(page)

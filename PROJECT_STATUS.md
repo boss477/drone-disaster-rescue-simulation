@@ -6,7 +6,7 @@ This is the source-of-truth checklist for the rescue-drone project. “Verified�
 
 ## Current result
 
-The repository is a **software demonstration platform** with an automatic 3D rescue demo and a separate manual mission workflow. Hosted Cesium 3D uses the committed public demo token; the basic OpenStreetMap globe works without it. It combines disaster-scene classification, recorded-footage person detection, a Cesium rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL-to-Cesium path, mission evidence, and replay.
+The repository is a **software demonstration platform** with an automatic 3D rescue demo and a separate manual mission workflow. The default world view uses NASA-AMMOS 3DTilesRendererJS with Three.js and OpenStreetMap imagery. Optional hosted terrain/buildings use the existing public Cesium ion token. The Cesium reference view and mission controller remain available. It combines disaster-scene classification, recorded-footage person detection, rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL path, mission evidence, and replay.
 
 It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gazebo SITL are complete, but repeatable latch hardware evidence and physical position feedback are still required.
 
@@ -17,7 +17,8 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Disaster classification | Zero-shot CLIP categories: flood, fire, earthquake damage, landslide, storm damage, normal and uncertain | `disaster_zero_shot.py`, `image_upload_demo.py` |
 | Unified browser AI review | One upload or camera frame runs CLIP and YOLO, shows all scores and annotated person candidates, and records the review against an operator-selected map area; actual photo detections remain distinct from scripted rooftop people | `vision_service.py`, `earth_rescue_vision.js`, `tests/earth_vision_browser_check.py` |
 | India climate training | Fictional Karnataka aid mission illustrates possible monsoon stress, dry ground and fire-risk markers; Peru wet and Indonesia dry alternatives; source linked, no live El Niño forecast claimed | **Climate training scenario**, `tests/earth_fast_climate_browser_check.py` |
-| Fast startup | Default schematic grid and local rescue geometry do not wait for ion assets; optional Detailed Earth, 1×/2×/4× scripted playback, concurrent AI inference and identical-image result reuse | `earth_rescue.js`, `vision_service.py` |
+| Fast startup | NASA local actors start while OSM imagery streams; Cesium reference starts with a schematic grid; neither waits for optional ion assets. 1×/2×/4× scripted playback, concurrent AI inference and identical-image result reuse | `earth_rescue.js`, `vision_service.py` |
+| NASA world renderer | Default Three.js world uses NASA-AMMOS 3DTilesRendererJS 0.5.3, streamed OSM imagery, optional hosted terrain/buildings, custom georeferenced tilesets and ODM mesh/point-cloud loading; existing mission actors remain synchronized | `world/nasa_world.js`, bundled `vendor/nasa-world.js`, `tests/nasa_world_browser_check.py` |
 | First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
@@ -70,6 +71,16 @@ The latest local audit passed **100 tests**. Earlier successful, required-abort 
 On 26 October, the India climate demo completed all three deliveries at 4× using real elapsed time. A browser test kept ion asset requests pending and verified startup within two seconds after CesiumJS loaded. It also checked zero ellipsoid ground heights, a visible drone after switching regions, and wet/dry regional effects. Actual cached CLIP + YOLO inference classified the sample as flood and detected one possible person: 35.05 seconds including the first Python model load after restart, then 0.03 seconds when the identical image result was reused. These timings describe this PC and this image, not general accuracy or latency guarantees.
 
 The complete 3D rescue demo was also checked in Chrome: three sequential deliveries and landing, unsafe-zone abort with no release, terrain clearance, pause, and manual approval gating. The camera-frustum rendering regression and safe-map fallback have a separate browser check. These are software simulation checks; the physical latch still needs the bench evidence below.
+
+The NASA renderer integration was checked against streamed OSM map imagery and a
+generated synthetic georeferenced glTF tile, including custom loading/clearing,
+ODM manifest mesh selection, whole-Earth view, reference-renderer switching and a
+complete India mission. An additional live check loaded visible Cesium terrain
+and OSM building tiles through NASA's renderer; the Dubai tower was visually
+inspected. No actual ODM dataset was available on this PC for the new NASA path,
+so that integration uses the synthetic manifest fixture rather than claiming a
+survey-specific verification. The 100 Python tests and separate reference-view
+mission/rendering checks also passed.
 
 ## Work still required
 
