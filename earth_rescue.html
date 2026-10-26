@@ -30,13 +30,18 @@
     <b>Watch a complete 3D rescue</b>
     <small>Three people on a rooftop, three aid packages, slow flight and return to base. The demo makes simulated review decisions automatically.</small>
     <label class="scenario-label">Demo outcome<select id="demoOutcome"><option value="success">Deliver aid and return</option><option value="abort">Unsafe zone: abort and return</option></select></label>
+    <label class="scenario-label">Climate training scenario<select id="climateScenario"><option value="elnino-india" selected>India · El Niño / weaker monsoon scenario</option><option value="neutral">Standard flood rescue</option><option value="elnino-wet">El Niño · wetter coastal Peru</option><option value="elnino-dry">El Niño · drier Indonesia / fire risk</option></select></label>
+    <div id="climateStatus" class="status">Illustrative seasonal scenarios, not current conditions or a forecast. Effects vary by region and season.</div>
+    <small><a href="https://www.noaa.gov/understanding-el-nino" target="_blank" rel="noopener">El Niño background: NOAA</a></small>
+    <label class="scenario-label">Playback speed<select id="missionSpeed"><option value="1">1× slow</option><option value="2" selected>2× normal</option><option value="4">4× quick demo</option></select></label>
     <div class="buttonrow"><button id="runDemo" disabled>Run 3D rescue demo</button><button id="missionView" class="quiet" disabled>Overview</button></div>
     <label class="scenario-label"><input id="followDrone" type="checkbox"> Follow the drone</label>
     <div id="demoStatus" class="status" role="status">Loading the Earth view…</div>
   </section>
   <section class="keybox">
     <b class="map-label">Map mode</b>
-    <small>Cesium terrain and 3D buildings load automatically with the public demo token. Replace it here if needed.</small>
+    <small>Fast mode uses a local grid and 3D rescue objects immediately. Enable Detailed Earth for online map tiles, terrain and city buildings.</small>
+    <label><input id="detailedEarth" type="checkbox"> Detailed Earth (internet, more GPU)</label>
     <div class="keyrow"><input id="cesiumToken" type="password" autocomplete="off" placeholder="Cesium ion token override"><button id="loadCesium" class="quiet">Reload 3D</button></div>
     <div id="earthStatus" class="status">Loading the 3D map…</div>
     <div class="preset-title">3D VIEW PRESETS</div>

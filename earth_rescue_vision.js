@@ -83,7 +83,9 @@
         if (!poll.ok) throw new Error('Vision service unavailable. Restart the dashboard server.');
         const job = await poll.json();
         if (job.status === 'complete') { showResult(job.result); break; }
-        $('visionStatus').textContent = job.message || 'Analysing…';
+        const partial = job.partial;
+        const progress = partial && 'people_count' in partial ? ` Possible people so far: ${partial.people_count}.` : '';
+        $('visionStatus').textContent = (job.message || 'Analysing…') + progress;
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {

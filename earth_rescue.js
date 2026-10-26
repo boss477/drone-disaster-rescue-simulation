@@ -300,10 +300,11 @@ async function initGlobe(token = '') {
   odmImageryLayers = [];
   odmPrimitives = [];
   try {
+    const detailed = $('detailedEarth').checked;
     if (token) Cesium.Ion.defaultAccessToken = token;
     let terrainProvider = new Cesium.EllipsoidTerrainProvider();
     let terrainFailed = false;
-    if (token) {
+    if (token && detailed) {
       try { terrainProvider = await Cesium.createWorldTerrainAsync(); }
       catch (_) { terrainFailed = true; }
     }
@@ -318,22 +319,29 @@ async function initGlobe(token = '') {
       fullscreenButton: false,
       infoBox: false,
       selectionIndicator: false,
-      baseLayer: osmLayer(),
+      baseLayer: detailed ? osmLayer() : new Cesium.ImageryLayer(new Cesium.GridImageryProvider({
+        cells: 16, color: Cesium.Color.fromCssColorString('#477879'),
+        backgroundColor: Cesium.Color.fromCssColorString('#193c3d'), glowWidth: 0,
+      })),
       terrainProvider,
       creditContainer: $('cesiumCredit'),
-      requestRenderMode: false,
+      requestRenderMode: true,
+      maximumRenderTimeChange: Infinity,
       targetFrameRate: 30,
     });
+    viewer.resolutionScale = detailed ? 1 : Math.min(1, 1 / (window.devicePixelRatio || 1));
+    viewer.scene.postProcessStages.fxaa.enabled = detailed;
     viewer.scene.preUpdate.addEventListener(keepCameraFrustumFinite);
     viewer.scene.renderError.addEventListener(recoverFromRenderError);
     viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#07111c');
     viewer.scene.skyAtmosphere.show = true;
     baseTerrainProvider = viewer.terrainProvider;
     syncSensorEffects();
-    $('earthStatus').textContent = token
+    $('earthStatus').textContent = !detailed
+      ? 'Fast local 3D ready · schematic grid. Detailed Earth enables online geography.' : token
       ? 'OpenStreetMap loaded. Loading Cesium terrain and 3D buildings…'
       : 'OpenStreetMap globe ready. Add a Cesium ion token later for terrain and 3D buildings.';
-    if (token) {
+    if (token && detailed) {
       try {
         const buildings = await Cesium.createOsmBuildingsAsync();
         viewer.scene.primitives.add(buildings);
@@ -424,7 +432,7 @@ function drawHazards() {
         color: Cesium.Color.fromCssColorString(hazardStyle[kind].color),
         outlineColor: Cesium.Color.WHITE,
         outlineWidth: 1,
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        disableDepthTestDistance: 0,
       },
       label: {
         text: event.title,
@@ -434,7 +442,8 @@ function drawHazards() {
         outlineWidth: 3,
         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
         pixelOffset: new Cesium.Cartesian2(0, -17),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        disableDepthTestDistance: 0,
+        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 250000),
       },
     }));
   });
@@ -593,7 +602,7 @@ function setMissionPhase(phase, detail) {
 }
 
 function setMissionInputsDisabled(disabled) {
-  ['flightSource','scenario','packageCount','routeRadius','demoOutcome'].forEach(id => { $(id).disabled = disabled; });
+  ['flightSource','scenario','packageCount','routeRadius','demoOutcome','climateScenario','detailedEarth'].forEach(id => { $(id).disabled = disabled; });
 }
 
 function missionWorldPosition(position) {
@@ -610,10 +619,14 @@ function missionOverview() {
   viewer.trackedEntity = undefined;
   const center = interpolate(mission.base || selected, mission.target, 0.5);
   const height = RescueScene.groundHeight(mission.terrain, center) + 25;
-  viewer.camera.lookAt(Cesium.Cartesian3.fromDegrees(center.lon,center.lat,height),
-    new Cesium.HeadingPitchRange(0,Cesium.Math.toRadians(-42),
-      Math.max(500,groundDistanceMeters(selected,mission.target) * 1.8)));
+  const range = Math.max(500,groundDistanceMeters(mission.base || selected,mission.target) * 1.8);
+  const pitch = Cesium.Math.toRadians(-42);
+  const frame = Cesium.Transforms.eastNorthUpToFixedFrame(Cesium.Cartesian3.fromDegrees(center.lon,center.lat,height));
+  const destination = Cesium.Matrix4.multiplyByPoint(frame,
+    new Cesium.Cartesian3(0,-range*Math.cos(pitch),-range*Math.sin(pitch)),new Cesium.Cartesian3());
   viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  viewer.camera.setView({destination,orientation:{heading:0,pitch,roll:0}});
+  viewer.scene.requestRender();
 }
 
 async function runRescueDemo() {
@@ -623,8 +636,26 @@ async function runRescueDemo() {
   $('scenario').value = $('demoOutcome').value;
   $('packageCount').value = '3';
   $('routeRadius').value = '250';
-  setLocation(46.8421,-91.994,'Flood rescue training area','scripted 3D demonstration','simulated placement');
-  selected.demoScene = true;
+  const climate = $('climateScenario').value;
+  const areas = {
+    'elnino-india': [12.2958,76.6394,'Karnataka, India · El Niño monsoon stress scenario'],
+    neutral: [46.8421,-91.994,'Flood rescue training area'],
+    'elnino-wet': [-5.19,-80.63,'Coastal Peru · El Niño wet scenario'],
+    'elnino-dry': [-2.5,114,'Indonesia · El Niño dry scenario'],
+  };
+  setLocation(...areas[climate], 'scripted climate training scenario','simulated placement');
+  selected.demoScene = climate === 'neutral' || climate === 'elnino-wet';
+  selected.climate = climate;
+  $('rainEffect').checked = climate === 'elnino-wet';
+  syncSensorEffects();
+  $('climateStatus').textContent = climate === 'elnino-india'
+    ? 'SIMULATED India scenario: a weaker summer monsoon, dry ground, heat stress and illustrative fire-risk markers. El Niño can affect Indian rainfall, but does not guarantee drought. This is not a current weather alert or forecast.'
+    : climate === 'elnino-wet'
+    ? 'SIMULATED El Niño wet scenario: coastal Peru, heavier rain and an expanded flood surface. Water levels are illustrative, not hydrological predictions.'
+    : climate === 'elnino-dry'
+      ? 'SIMULATED El Niño dry scenario: Indonesia, dry ground, smoke and fire-risk markers. Fires are illustrative; no real fire is predicted.'
+      : 'Standard simulated flood scenario. No seasonal climate effect applied.';
+  logEvent('CLIMATE_SCENARIO', $('climateStatus').textContent);
   targetConfirmed = true;
   $('candidate').classList.add('confirmed');
   logEvent('DEMO_TARGET_REVIEW','Automatic candidate confirmation for the software demonstration.');
@@ -659,6 +690,7 @@ async function buildMission(autoDemo = false) {
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
   mission = {
     base,
+    climate: base.climate || 'neutral',
     target,
     terrain,
     autoDemo,
@@ -676,13 +708,15 @@ async function buildMission(autoDemo = false) {
     lastSampleAt: -1,
     sensorEffects: enabledSensorEffects(),
   };
+  // Dynamic presentation geometry needs continuous rendering, including after landing.
+  viewer.scene.requestRenderMode = false;
   sensorTelemetryQueue = [];
   [[selectedMarker,base],[targetMarker,target]].forEach(([marker,position]) => {
     if (!marker) return;
     marker.position = RescueScene.worldPosition(terrain,{ ...position, alt: 18 });
     marker.point.heightReference = Cesium.HeightReference.NONE;
   });
-  routeEntities.push(...RescueScene.addSite(viewer,base,target,terrain,Boolean(base.demoScene)));
+  routeEntities.push(...RescueScene.addSite(viewer,base,target,terrain,Boolean(base.demoScene),mission.climate));
   const routePositions = terrain.heights.map((height,index) => Cesium.Cartesian3.fromDegrees(
     base.lon + (target.lon-base.lon)*index/12,base.lat + (target.lat-base.lat)*index/12,height+75));
   routeEntities.push(viewer.entities.add({
@@ -936,13 +970,14 @@ function loadedPackages() {
 
 function animateMission(now, generation) {
   if (generation !== replayGeneration || !running || !mission || !drone) return;
-  if (!paused) missionClock += (now - lastFrame) / 1000;
+  if (!paused) missionClock += Math.min((now - lastFrame) / 1000, 0.25) * (followsSITL() ? 1 : Number($('missionSpeed').value));
   lastFrame = now;
   const scriptedPosition = missionPosition();
   const actualPosition = autopilotPosition() || applyWindDrift(scriptedPosition);
   const position = sensorPosition(actualPosition);
   mission.current = actualPosition;
   drone.position = missionWorldPosition(position);
+  viewer.scene.requestRender();
   if (followsSITL() && autopilotTelemetry?.heading_deg != null) {
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(autopilotTelemetry.heading_deg), 0, 0);
     drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
@@ -1005,6 +1040,7 @@ function resetMission() {
   setSensorControlsDisabled(false);
   setMissionInputsDisabled(false);
   clearMissionEntities();
+  if (viewer) { viewer.scene.requestRenderMode = true; viewer.scene.requestRender(); }
   $('phase').textContent = 'DRONE AT BASE';
   $('delivered').textContent = '0';
   $('battery').textContent = '100%';
@@ -1029,8 +1065,13 @@ $('loadCesium').onclick = () => {
     return;
   }
   sessionStorage.setItem('rescueCesiumToken', token);
+  $('detailedEarth').checked = true;
   safeMapActive = false;
   initGlobe(token);
+};
+$('detailedEarth').onchange = () => {
+  resetMission();
+  initGlobe($('cesiumToken').value.trim() || DEFAULT_CESIUM_TOKEN);
 };
 $('loadOdm').onclick = loadOdmLayers;
 $('clearOdm').onclick = () => removeOdmLayers();
@@ -1127,12 +1168,13 @@ function startReplay(record) {
   clearMissionEntities();
   const samples = record.mission.samples;
   mission = record.mission;
+  viewer.scene.requestRenderMode = false;
   const positions = samples.flatMap(sample => [sample.lon, sample.lat, sample.height_ellipsoid_m ?? sample.alt]);
   routeEntities.push(viewer.entities.add({
     polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions), width: 4, material: Cesium.Color.fromCssColorString('#ffc45c') },
   }));
   if (mission.terrain) routeEntities.push(...RescueScene.addSite(viewer,mission.terrain.base,
-    mission.target,mission.terrain,Boolean(mission.terrain.base.demoScene)));
+    mission.target,mission.terrain,Boolean(mission.terrain.base.demoScene),mission.climate || 'neutral'));
   const aircraft = RescueScene.addDrone(viewer,Cesium.Cartesian3.fromDegrees(samples[0].lon,
     samples[0].lat,samples[0].height_ellipsoid_m ?? samples[0].alt),() => performance.now()/1000);
   drone = aircraft.body;
@@ -1158,6 +1200,7 @@ function startReplay(record) {
     if (index < 0) index = samples.length - 1;
     const sample = samples[index];
     drone.position = Cesium.Cartesian3.fromDegrees(sample.lon, sample.lat, sample.height_ellipsoid_m ?? sample.alt);
+    viewer.scene.requestRender();
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(sample.heading_deg || 0), 0, 0);
     drone.orientation = Cesium.Transforms.headingPitchRollQuaternion(drone.position.getValue(), hpr);
     $('phase').textContent = `REPLAY · ${(sample.phase || 'mission').replaceAll('_', ' ').toUpperCase()}`;

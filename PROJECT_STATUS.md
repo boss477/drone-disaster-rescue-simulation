@@ -16,12 +16,14 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | --- | --- | --- |
 | Disaster classification | Zero-shot CLIP categories: flood, fire, earthquake damage, landslide, storm damage, normal and uncertain | `disaster_zero_shot.py`, `image_upload_demo.py` |
 | Unified browser AI review | One upload or camera frame runs CLIP and YOLO, shows all scores and annotated person candidates, and records the review against an operator-selected map area; actual photo detections remain distinct from scripted rooftop people | `vision_service.py`, `earth_rescue_vision.js`, `tests/earth_vision_browser_check.py` |
+| India climate training | Fictional Karnataka aid mission illustrates possible monsoon stress, dry ground and fire-risk markers; Peru wet and Indonesia dry alternatives; source linked, no live El Niño forecast claimed | **Climate training scenario**, `tests/earth_fast_climate_browser_check.py` |
+| Fast startup | Default schematic grid and local rescue geometry do not wait for ion assets; optional Detailed Earth, 1×/2×/4× scripted playback, concurrent AI inference and identical-image result reuse | `earth_rescue.js`, `vision_service.py` |
 | First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
 | Complete 3D rescue demo | Terrain-aware local drone, flooded settlement, three rooftop people, sequential package unloading, takeoff/landing, automatic demo success/abort, overview/follow camera and HUD | **Run 3D rescue demo**, `tests/earth_rescue_mission_browser_check.py` |
-| Detailed Earth view | Cesium terrain and OSM 3D buildings load automatically with a committed public demo token; browser-session override remains available | `earth_rescue.js`, token field in `earth_rescue.html` |
+| Detailed Earth view | Enable Detailed Earth for Cesium terrain, OSM map tiles and 3D buildings using the public demo token; browser-session override remains available | `earth_rescue.js`, token field in `earth_rescue.html` |
 | Sensor degradation | Switchable camera noise, rain, fog, GPS jitter, scripted wind drift, telemetry delay and false AI alert; effects are logged and do not command PX4 | **Sensor degradation** in `earth_rescue.html` |
 | ODM dashboard integration | Read-only external-data loader for orthophoto, DSM visualization, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
 | Mission evidence | Timestamped decisions plus half-second position, altitude, heading, battery, phase and package samples | **Download JSON** in the dashboard |
@@ -63,7 +65,9 @@ node --check earth_rescue.js
 py -m unittest discover -s tests -q
 ```
 
-The latest audit passed **95 tests**. The successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings.
+The latest local audit passed **100 tests**. Earlier successful, required-abort and degraded-sensor dashboard workflows were exercised in Chromium, and real PX4 telemetry was received by both the Windows adapter port and QGroundControl. The sample ODM layers were loaded in Chromium with Cesium terrain and 3D buildings in those earlier checks.
+
+On 26 October, the India climate demo completed all three deliveries at 4× using real elapsed time. A browser test kept ion asset requests pending and verified startup within two seconds after CesiumJS loaded. It also checked zero ellipsoid ground heights, a visible drone after switching regions, and wet/dry regional effects. Actual cached CLIP + YOLO inference classified the sample as flood and detected one possible person: 35.05 seconds including the first Python model load after restart, then 0.03 seconds when the identical image result was reused. These timings describe this PC and this image, not general accuracy or latency guarantees.
 
 The complete 3D rescue demo was also checked in Chrome: three sequential deliveries and landing, unsafe-zone abort with no release, terrain clearance, pause, and manual approval gating. The camera-frustum rendering regression and safe-map fallback have a separate browser check. These are software simulation checks; the physical latch still needs the bench evidence below.
 

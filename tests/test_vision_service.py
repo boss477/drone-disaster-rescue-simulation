@@ -1,4 +1,5 @@
 import io
+import hashlib
 import threading
 import unittest
 from unittest.mock import patch
@@ -18,6 +19,16 @@ class VisionServiceTests(unittest.TestCase):
         with self.assertRaises(Exception):
             service.start(b'not an image')
         self.assertEqual(service.snapshot()['status'], 'idle')
+
+    def test_identical_successful_image_reuses_result(self):
+        service = VisionService()
+        data = self.image_bytes()
+        service.last_image_key = hashlib.sha256(data).hexdigest()
+        service.state = {'status': 'complete', 'result': {'people_count': 1, 'errors': {}}}
+        with patch.object(service, '_run') as run:
+            self.assertTrue(service.start(data))
+            run.assert_not_called()
+        self.assertEqual(service.snapshot()['result']['people_count'], 1)
 
     def test_concurrent_review_is_rejected(self):
         service = VisionService()

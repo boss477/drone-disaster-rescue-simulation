@@ -1,6 +1,11 @@
 /* Local 3D presentation geometry for the simulated rescue mission. */
 const RescueScene = (() => {
   async function terrainProfile(viewer, base, target) {
+    // Low-detail globe mesh interpolation can report large negative heights
+    // before tiles arrive. An ellipsoid has a known surface: exactly zero.
+    if (viewer.terrainProvider instanceof Cesium.EllipsoidTerrainProvider) {
+      return { base: { ...base }, target: { ...target }, sampled: false, heights: Array(13).fill(0) };
+    }
     const points = Array.from({ length: 13 }, (_, index) => Cesium.Cartographic.fromDegrees(
       base.lon + (target.lon - base.lon) * index / 12,
       base.lat + (target.lat - base.lat) * index / 12,
@@ -46,7 +51,8 @@ const RescueScene = (() => {
       lon: origin.lon + east / (111320 * Math.max(0.01, Math.cos(origin.lat * Math.PI / 180))) };
   }
 
-  function addSite(viewer, base, target, profile, flooded) {
+  function addSite(viewer, base, target, profile, flooded, climate = 'neutral') {
+    const dry = climate === 'elnino-dry' || climate === 'elnino-india';
     const entities = [];
     const add = options => {
       // Keep this small training scene on Cesium's synchronous geometry path;
@@ -64,15 +70,28 @@ const RescueScene = (() => {
       return entity;
     };
     const at = (position, alt) => worldPosition(profile, { ...position, alt });
+    // Local ground gives the actors an immediate visible setting even when map tiles stall.
+    const ground = [[-145,-100],[145,-100],[145,380],[-145,380]].map(([x,y]) => offset(base,x,y));
+    add({ polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(ground.flatMap(p => [p.lon,p.lat])),
+      height: groundHeight(profile,base) + 0.1,
+      material: Cesium.Color.fromCssColorString(dry ? '#a37e49' : '#547a63') } });
     add({ position: at(base, 0.3), ellipse: { semiMajorAxis: 15, semiMinorAxis: 15,
       height: groundHeight(profile, base) + 0.3, material: Cesium.Color.fromCssColorString('#244a4c') },
       label: { text: 'H · AID BASE', font: 'bold 14px sans-serif', fillColor: Cesium.Color.CYAN,
         pixelOffset: new Cesium.Cartesian2(0, -24), disableDepthTestDistance: Infinity } });
     if (flooded) {
-      const corners = [[-105, -65], [105, -65], [105, 95], [-105, 95]].map(([x,y]) => offset(target, x, y));
+      const extent = climate === 'elnino-wet' ? 1.2 : 1;
+      const corners = [[-105, -65], [105, -65], [105, 95], [-105, 95]].map(([x,y]) => offset(target, x * extent, y * extent));
       add({ polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(corners.flatMap(p => [p.lon,p.lat])),
-        height: groundHeight(profile, target) + 2.5,
+        height: groundHeight(profile, target) + (climate === 'elnino-wet' ? 3.5 : 2.5),
         material: Cesium.Color.fromCssColorString('#158ac3').withAlpha(0.65) } });
+    }
+    if (dry) {
+      [[-100,40],[105,65],[-95,-30]].forEach(([x,y]) => {
+        const point = offset(target,x,y);
+        add({position: at(point,3),ellipsoid:{radii:new Cesium.Cartesian3(5,5,7),material:Cesium.Color.ORANGE.withAlpha(0.8)}});
+        add({position: at(point,17),ellipsoid:{radii:new Cesium.Cartesian3(7,7,9),material:Cesium.Color.GRAY.withAlpha(0.35)}});
+      });
     }
     [[0,0],[-65,25],[65,30],[-55,-35],[55,-30]].forEach(([x,y], index) => {
       const center = offset(target, x, y);

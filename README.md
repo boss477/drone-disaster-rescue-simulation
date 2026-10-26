@@ -95,7 +95,7 @@ Start the local server with `./run_earth_rescue.ps1`, then open `http://127.0.0.
 
 The **Aircraft position source** selector has two modes. The default scripted mode is self-contained. **Follow PX4 / ArduPilot SITL telemetry** reads latitude, longitude, relative altitude, heading, battery, flight mode, armed state and GPS quality from `/api/autopilot`; launch stays blocked until a live simulator feed exists. Selecting it uses the current SITL position as mission home. Fly the virtual vehicle using QGroundControl: arrival is recognized within 30 m of the drop zone, and return completes within 30 m of home below 15 m relative altitude. The mission decision workflow remains operator-controlled and simulated; this adapter sends no flight commands.
 
-The basic OpenStreetMap globe needs no API key. Cesium World Terrain and hosted OpenStreetMap 3D Buildings load automatically with a public demo Cesium ion token committed in `earth_rescue.js` at the project owner's request. Anyone can read this token from the public repository, so keep its Cesium ion permissions limited and replace or revoke it if needed. You can override it using the dashboard token field; overrides stay in browser session storage. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
+Fast mode uses a schematic grid and local 3D rescue geometry. Enable **Detailed Earth** for OpenStreetMap tiles, Cesium World Terrain and hosted OpenStreetMap 3D Buildings, using the public demo token committed in `earth_rescue.js` at the project owner's request. You can override the token using the dashboard field; overrides stay in browser session storage. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
 
 After enabling Cesium 3D, use the preset buttons for an angled **Vancouver city + mountains**, **Dubai skyline**, or **Everest mountains** view. These are visualization presets; building and terrain detail depends on streamed Cesium coverage.
 
@@ -182,7 +182,7 @@ The fallback reads the LAZ coordinate system, converts to Earth-centered coordin
 ./run_earth_rescue.ps1 -OdmRoot D:\DroneRescueData\odm
 ```
 
-Press **Load ODM** to add the selected orthophoto, DSM elevation overlay, point cloud and textured mesh. The DSM overlay is a color visualization, not geometric terrain. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible. Hosted Cesium terrain and buildings now load automatically using the public demo token in the repository. To use your own token, paste it into the dashboard's password field and click **Reload 3D**; that override stays in your browser session.
+Press **Load ODM** to add the selected orthophoto, DSM elevation overlay, point cloud and textured mesh. The DSM overlay is a color visualization, not geometric terrain. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible. Enable **Detailed Earth** to load hosted Cesium terrain and buildings using the public demo token. To use your own token, paste it into the dashboard's password field and click **Reload 3D**; that override stays in your browser session.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 
@@ -570,3 +570,23 @@ Camera capture analyses a still frame, not a continuous live video stream.
 Use **3D rescue view** at the lower right to restore the angled mission scene,
 or start the complete training scene if there is no mission yet. Clicking a new
 map area after completion clears the old mission and its HUD.
+
+## Fast India / El Niño demo
+
+The default **India · El Niño / weaker monsoon scenario** places a fictional aid
+mission near Mysuru, Karnataka. Dry ground, smoke and fire-risk markers illustrate
+monsoon stress; they do not depict verified fires or a forecast. El Niño develops
+in the equatorial Pacific and can influence India's monsoon; reduced rainfall
+is not guaranteed. See [NOAA's ENSO explanation](https://www.noaa.gov/understanding-el-nino).
+Separate coastal Peru wet and Indonesia dry scenarios are also available.
+
+Fast mode starts with local 3D geometry and a schematic grid instead of waiting
+for hosted terrain/buildings. Enable **Detailed Earth** for actual online map
+tiles, terrain and buildings. CesiumJS itself still loads from the CDN. Choose
+1×, 2× or 4× playback; SITL telemetry keeps its original timing. AI models run
+independently, remain in memory, and reuse the previous successful image result
+when the identical image is analysed again. The first model load still takes time.
+
+Browser check: `py tests/earth_fast_climate_browser_check.py` verifies startup with
+ion requests stalled and completes the India mission at 4× using real elapsed time.
+Optional real inference check: `py tests/vision_live_check.py`.
