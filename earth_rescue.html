@@ -48,11 +48,16 @@
     <label class="scenario-label">3D Tiles / ODM tileset URL<input id="nasaTilesUrl" placeholder="/odm-data/survey/tileset.json"></label>
     <div class="buttonrow"><button id="loadNasaTiles" class="quiet">Load tileset</button><button id="clearNasaTiles" class="quiet">Clear tileset</button></div>
     <small id="nasaTileStatus">Custom surveys must provide a georeferenced 3D Tiles tileset. No survey is bundled as real-world data.</small>
-    <b class="map-label">Optional terrain and buildings</b>
-    <small>NASA streams OSM map tiles by default. Detailed Earth adds hosted terrain and city buildings. The Cesium reference view uses a schematic grid when this is off.</small>
-    <label><input id="detailedEarth" type="checkbox"> Detailed Earth (internet, more GPU)</label>
+    <b class="map-label">Worldwide 3D terrain and buildings</b>
+    <small>Terrain and mapped buildings stream automatically wherever you explore. Building completeness varies; missing geometry is never replaced with invented real-world buildings.</small>
+    <label><input id="detailedEarth" type="checkbox" checked> 3D terrain &amp; buildings (on by default)</label>
     <div class="keyrow"><input id="cesiumToken" type="password" autocomplete="off" placeholder="Cesium ion token override"><button id="loadCesium" class="quiet">Reload 3D</button></div>
     <div id="earthStatus" class="status">Loading the 3D map…</div>
+    <div id="worldCoverage" class="status" role="status">Worldwide 3D layers are starting…</div>
+    <div class="preset-title">GO TO ANY COORDINATES</div>
+    <div class="package-row"><label>Latitude <input id="exploreLat" type="number" min="-90" max="90" step="any" value="12.2958"></label><label>Longitude <input id="exploreLon" type="number" min="-180" max="180" step="any" value="76.6394"></label></div>
+    <button id="exploreWorld" class="quiet">Explore in 3D</button>
+    <small id="exploreStatus" role="status">Enter any valid latitude and longitude, or drag the globe to explore.</small>
     <div class="preset-title">3D VIEW PRESETS</div>
     <div class="preset-grid"><button data-preset="vancouver" class="quiet">City + mountains</button><button data-preset="dubai" class="quiet">Skyline</button><button data-preset="everest" class="quiet">Mountains</button></div>
     <div class="preset-title">OPENDRONEMAP DATA</div>

@@ -303,7 +303,9 @@ async function initGlobe(token = '') {
   odmImageryLayers = [];
   odmPrimitives = [];
   try {
-    const detailed = $('detailedEarth').checked;
+    // NASA streams the global layers itself. Its hidden reference/controller
+    // must start immediately rather than download a duplicate terrain world.
+    const detailed = $('detailedEarth').checked && $('worldRenderer').value === 'cesium';
     if (token) Cesium.Ion.defaultAccessToken = token;
     let terrainProvider = new Cesium.EllipsoidTerrainProvider();
     let terrainFailed = false;
@@ -1254,6 +1256,7 @@ $('replayFile').onchange = async event => {
 
 const rememberedToken = sessionStorage.getItem('rescueCesiumToken') || DEFAULT_CESIUM_TOKEN;
 $('cesiumToken').value = rememberedToken;
+if (new URLSearchParams(location.search).get('quality') === 'fast') $('detailedEarth').checked = false;
 if (new URLSearchParams(location.search).get('renderer') === 'cesium') $('worldRenderer').value = 'cesium';
 const initialGlobe = initGlobe(rememberedToken);
 refreshEvents();

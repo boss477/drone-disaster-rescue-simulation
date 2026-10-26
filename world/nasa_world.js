@@ -31,9 +31,16 @@ let active = false;
 let modelLoads = 0;
 let failures = 0;
 let lastFrameAt = 0;
-let lastGroundCheck = 0;
 let lastCreditCheck = 0;
 let ready = false;
+let detailedWorld = false;
+let groundKnown = false;
+let groundHeight = 0;
+let viewKind = 'local';
+let navigationTouched = false;
+let terrainSampler = null;
+let groundSampleGeneration = 0;
+let groundSampling = false;
 const meshes = new Map();
 const draco = new DRACOLoader().setDecoderPath('/vendor/draco/');
 
@@ -42,6 +49,8 @@ function local(ecef, target = new THREE.Vector3()) {
 }
 
 function anchor(area) {
+  const sameArea = Math.abs(origin.lat-area.lat)<1e-7 && Math.abs(origin.lon-area.lon)<1e-7;
+  if (!sameArea) { groundKnown=!detailedWorld; groundHeight=0; groundSampleGeneration++; }
   origin = { lat: area.lat, lon: area.lon };
   WGS84_ELLIPSOID.getEastNorthUpFrame(THREE.MathUtils.degToRad(area.lat),
     THREE.MathUtils.degToRad(area.lon), 0, frame);
@@ -49,7 +58,60 @@ function anchor(area) {
   inverse.copy(frame).invert();
   root.matrix.copy(inverse);
   root.updateMatrixWorld(true);
-  actors.position.y = 0;
+  actors.position.y = groundHeight-missionBaseHeight();
+  element('exploreLat').value=area.lat.toFixed(6);
+  element('exploreLon').value=area.lon.toFixed(6);
+  if (!sameArea && detailedWorld && ready) sampleGround();
+}
+
+function missionBaseHeight() {
+  return typeof mission !== 'undefined' ? mission?.terrain?.heights?.[0] || 0 : 0;
+}
+
+function applyGroundHeight(height) {
+  const firstGround=!groundKnown;
+  groundKnown=true;
+  groundHeight=height;
+  const next=height-missionBaseHeight();
+  const delta=next-actors.position.y;
+  actors.position.y=next;
+  if (viewKind==='local' && !navigationTouched) {
+    if (firstGround) missionView();
+    else camera.position.y+=delta;
+  } else if (viewKind==='preset' && !navigationTouched && firstGround) {
+    camera.lookAt(new THREE.Vector3(0,height,0));
+  }
+}
+
+async function sampleGround() {
+  const generation=++groundSampleGeneration;
+  const area={...origin};
+  groundSampling=true;
+  let timer;
+  try {
+    // Sample one location from the terrain source, not an unfinished coarse
+    // render mesh: its chord error can put a real city below sea level.
+    Cesium.Ion.defaultAccessToken=element('cesiumToken').value.trim();
+    if (!terrainSampler) terrainSampler=Cesium.createWorldTerrainAsync();
+    const work=(async()=>{
+      const provider=await terrainSampler;
+      return Cesium.sampleTerrainMostDetailed(provider,[Cesium.Cartographic.fromDegrees(area.lon,area.lat)]);
+    })();
+    const [sample]=await Promise.race([work,new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new Error('terrain height timeout')),30000);
+    })]);
+    if (generation!==groundSampleGeneration || !detailedWorld) return;
+    if (!Number.isFinite(sample.height) || sample.height < -1000 || sample.height > 12000) throw new Error('terrain height unavailable');
+    applyGroundHeight(sample.height);
+  } catch (error) {
+    if (generation===groundSampleGeneration) {
+      terrainSampler=null;
+      status.textContent='3D tiles are streaming; precise ground height is unavailable. Mission view will stay high. Reload 3D to retry.';
+    }
+  } finally {
+    clearTimeout(timer);
+    if (generation===groundSampleGeneration) groundSampling=false;
+  }
 }
 
 function resize() {
@@ -70,6 +132,7 @@ function disposeLayer(tiles) {
 
 function configure(tiles, custom = false) {
   tiles.loadedModels = 0;
+  tiles.failedLoads = 0;
   tiles.errorTarget = 16;
   tiles.downloadQueue.maxJobs = 4;
   tiles.lruCache.minBytesSize = 32 * 1024 * 1024;
@@ -84,6 +147,7 @@ function configure(tiles, custom = false) {
   });
   tiles.addEventListener('load-error', () => {
     failures++;
+    tiles.failedLoads++;
     if (custom) element('nasaTileStatus').textContent = 'Tileset failed to load. Check its URL, CORS access, coordinates and required credentials.';
     else status.textContent = 'Some online tiles are unavailable. The local rescue scene remains usable.';
   });
@@ -100,7 +164,13 @@ function loadWorld(detailed = false) {
   worldLayers.forEach(disposeLayer);
   worldLayers = [];
   terrainLayer = null;
+  detailedWorld = detailed;
+  groundSampleGeneration++;
+  groundSampling=false;
+  groundKnown=!detailed;
+  groundHeight=0;
   actors.position.y = 0;
+  controls.adjustHeight=detailed;
   const map = new TilesRenderer();
   map.registerPlugin(new GeneratedSurfacePlugin({ overlay: osmOverlay(), projection: 'ellipsoid', applyOverlayTexture: true }));
   worldLayers.push(configure(map));
@@ -116,8 +186,10 @@ function loadWorld(detailed = false) {
     worldLayers.push(configure(buildings));
   }
   status.textContent = detailed
-    ? 'NASA renderer streaming Cesium terrain / buildings with OSM imagery. Coverage and download time vary.'
+    ? 'Worldwide 3D enabled: terrain and mapped buildings stream automatically as the camera moves.'
     : 'NASA world ready. OpenStreetMap tiles stream in the background; local 3D actors start immediately.';
+  if (viewKind==='local' && !navigationTouched) missionView();
+  if (detailed) sampleGround();
 }
 
 function clearMeshes() {
@@ -211,7 +283,7 @@ function syncActors() {
     const shape = entity.box || entity.ellipsoid || entity.ellipse || entity.polygon;
     if (shape && mesh.material.color) mesh.material.color.copy(colorOf(shape.material,time).color);
   }
-  if (element('followDrone').checked && drone && meshes.has(drone.id)) {
+  if (element('followDrone').checked && drone && meshes.has(drone.id) && (!detailedWorld || groundKnown)) {
     point.copy(meshes.get(drone.id).position).add(actors.position);
     camera.position.copy(point).add(new THREE.Vector3(90,100,150));
     camera.up.set(0,1,0);
@@ -221,6 +293,8 @@ function syncActors() {
 
 function missionView() {
   if (!ready) return;
+  viewKind='local';
+  navigationTouched=false;
   let north = 125;
   let distance = 500;
   if (typeof mission !== 'undefined' && mission?.target) {
@@ -230,7 +304,13 @@ function missionView() {
     north = -point.z/2;
     distance = Math.max(500,point.length()*1.8);
   }
-  const target = new THREE.Vector3(0,actors.position.y+25,-north);
+  // Stay above even Himalayan peaks while the new area's elevation arrives.
+  // Once sampled, focus down to a useful oblique view of the actual surface.
+  if (detailedWorld && !groundKnown) distance=Math.max(distance,18000);
+  // At mountain summits a street-scale view can fill the screen with one
+  // hillside. Step back to show the surrounding relief when exploring.
+  if (groundKnown && groundHeight>2500 && !(typeof mission!=='undefined' && mission)) distance=Math.max(distance,5000);
+  const target = new THREE.Vector3(0,groundHeight+25,-north);
   camera.position.copy(target).add(new THREE.Vector3(0,distance*.67,distance*.74));
   camera.up.set(0,1,0);
   camera.lookAt(target);
@@ -240,6 +320,8 @@ function missionView() {
 
 function wholeEarth() {
   if (!ready) return;
+  viewKind='globe';
+  navigationTouched=false;
   element('followDrone').checked = false;
   const position = WGS84_ELLIPSOID.getCartographicToPosition(THREE.MathUtils.degToRad(20),
     THREE.MathUtils.degToRad(80),1.3e7,new THREE.Vector3());
@@ -255,6 +337,21 @@ function selectArea(area) {
   missionView();
 }
 
+function exploreCoordinates() {
+  const latValue=element('exploreLat').value.trim(), lonValue=element('exploreLon').value.trim();
+  const lat=Number(latValue), lon=Number(lonValue);
+  if (!latValue || !lonValue || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat)>90 || Math.abs(lon)>180) {
+    element('exploreStatus').textContent='Enter latitude −90 to 90 and longitude −180 to 180.';
+    return;
+  }
+  if (typeof running!=='undefined' && running) {
+    element('exploreStatus').textContent='Finish or reset the mission before selecting a new area.';
+    return;
+  }
+  setLocation(lat,lon,'Operator coordinate selection','operator','coordinates supplied by operator');
+  element('exploreStatus').textContent=`Exploring ${lat.toFixed(5)}, ${lon.toFixed(5)}. The camera will settle above the loaded terrain.`;
+}
+
 function setMode() {
   active = element('worldRenderer').value === 'nasa' && ready;
   worldElement.hidden = !active;
@@ -263,7 +360,7 @@ function setMode() {
   if (typeof viewer !== 'undefined' && viewer) viewer.useDefaultRenderLoop = !active;
   if (active) { resize(); missionView(); }
   element('earthStatus').textContent = active
-    ? 'NASA world uses OSM imagery. Detailed Earth adds hosted terrain and buildings.'
+    ? element('detailedEarth').checked ? 'NASA world: worldwide 3D terrain and mapped buildings enabled.' : 'NASA world: fast map mode, 3D layers switched off.'
     : 'Cesium reference view selected. Its fast mode uses a schematic grid.';
 }
 
@@ -277,6 +374,7 @@ function loadCustom(explicitUrl = null) {
   } catch (error) { element('nasaTileStatus').textContent = error.message; return; }
   disposeLayer(customLayer);
   customLayer = configure(new TilesRenderer(url.href),true);
+  viewKind='custom';
   customLayer.addEventListener('load-root-tileset', () => {
     // Fit the supplied survey; its root transform determines its actual location.
     const sphere = new THREE.Sphere();
@@ -313,6 +411,8 @@ function clearCustom() {
 
 function flyToPreset(preset) {
   if (!ready) return;
+  viewKind='preset';
+  navigationTouched=false;
   const p=preset.camera;
   const world=WGS84_ELLIPSOID.getCartographicToPosition(THREE.MathUtils.degToRad(p.lat),
     THREE.MathUtils.degToRad(p.lon),p.height,new THREE.Vector3());
@@ -347,28 +447,26 @@ function animate(now) {
       }
     }
     element('nasaProviderCredits').textContent=credits.length ? ' · '+credits.join(' · ') : '';
-  }
-  if (terrainLayer && meshes.size && now-lastGroundCheck>2000) {
-    lastGroundCheck=now;
-    const hit = new THREE.Raycaster(new THREE.Vector3(0,20000,0),new THREE.Vector3(0,-1,0),0,40000)
-      .intersectObject(terrainLayer.group,true)[0];
-    if (hit && Number.isFinite(hit.point.y) && Math.abs(hit.point.y)<12000) {
-      const baseHeight = typeof mission !== 'undefined' ? mission?.terrain?.heights?.[0] || 0 : 0;
-      const next = hit.point.y-baseHeight;
-      const delta = next-actors.position.y;
-      actors.position.y=next;
-      camera.position.y+=delta;
-    }
+    const buildings=worldLayers[2];
+    element('worldCoverage').textContent=!detailedWorld
+      ? 'Fast map mode: global 3D terrain/buildings are switched off.'
+      : `3D terrain: ${terrainLayer?.visibleTiles.size || 0} visible tiles · Buildings: ${buildings?.visibleTiles.size || 0} visible tiles. `+
+        (buildings?.visibleTiles.size ? 'Mapped geometry is visible; detail varies by area.'
+          : buildings?.isLoading ? 'Building data is loading for this view.'
+          : buildings?.failedLoads ? 'Building requests failed; check network access and the configured token.'
+          : 'No building geometry is visible at this zoom; coverage may be incomplete.');
   }
   renderer.render(scene,camera);
 }
 
 try {
   renderer = new THREE.WebGLRenderer({antialias:false,logarithmicDepthBuffer:true});
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1;
   renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));
   worldElement.append(renderer.domElement);
-  scene.add(new THREE.HemisphereLight('#d7f2ff','#344438',2.2));
-  const light = new THREE.DirectionalLight('#fff0d6',2);
+  scene.add(new THREE.HemisphereLight('#d7f2ff','#344438',0.85));
+  const light = new THREE.DirectionalLight('#fff0d6',1.5);
   light.position.set(300,700,300); scene.add(light);
   const earth = new THREE.Mesh(new THREE.SphereGeometry(1,64,32),new THREE.MeshLambertMaterial({color:'#224857'}));
   earth.rotation.x=Math.PI/2;
@@ -380,6 +478,8 @@ try {
   controls.setEllipsoid(WGS84_ELLIPSOID,root);
   controls.adjustHeight=false;
   controls.enableDamping=false;
+  controls.minAltitude=25;
+  controls.addEventListener('start',()=>{navigationTouched=true;});
   let down;
   renderer.domElement.addEventListener('pointerdown',e => {down={x:e.clientX,y:e.clientY};});
   renderer.domElement.addEventListener('pointerup',e => {
@@ -398,6 +498,8 @@ try {
   anchor(typeof selected!=='undefined' && selected ? selected : origin);
   window.RescueWorld={selectArea,missionView,loadWorld,wholeEarth,loadODM,clearCustom,flyToPreset,
     getState:()=>({engine:'NASA-AMMOS/3DTilesRendererJS',version:'0.5.3',active,ready,modelLoads,failures,
+      detailed:detailedWorld,groundKnown,groundSampling,groundHeight,viewKind,
+      cameraAltitude:WGS84_ELLIPSOID.getPositionElevation(camera.position.clone().applyMatrix4(frame)),
       actorCount:meshes.size,origin:{...origin},drawCalls:renderer.info.render.calls,
       terrainModels:terrainLayer?.loadedModels || 0,buildingModels:worldLayers[2]?.loadedModels || 0,
       terrainVisible:terrainLayer?.visibleTiles.size || 0,buildingVisible:worldLayers[2]?.visibleTiles.size || 0,
@@ -405,6 +507,7 @@ try {
   element('worldRenderer').onchange=setMode;
   element('worldOverview').onclick=wholeEarth;
   element('worldMission').onclick=missionView;
+  element('exploreWorld').onclick=exploreCoordinates;
   element('loadNasaTiles').onclick=loadCustom;
   element('clearNasaTiles').onclick=clearCustom;
   window.addEventListener('resize',resize);

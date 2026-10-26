@@ -1,12 +1,12 @@
 # Project status and remaining work
 
-Last audited: **26 October 2026**
+Last audited: **27 October 2026**
 
 This is the source-of-truth checklist for the rescue-drone project. “Verified” means the repository contains the implementation and it has been exercised locally or covered by automated tests. Real incident data, AI detections, simulated flight, and physical hardware evidence are kept separate.
 
 ## Current result
 
-The repository is a **software demonstration platform** with an automatic 3D rescue demo and a separate manual mission workflow. The default world view uses NASA-AMMOS 3DTilesRendererJS with Three.js and OpenStreetMap imagery. Optional hosted terrain/buildings use the existing public Cesium ion token. The Cesium reference view and mission controller remain available. It combines disaster-scene classification, recorded-footage person detection, rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL path, mission evidence, and replay.
+The repository is a **software demonstration platform** with an automatic 3D rescue demo and a separate manual mission workflow. The default world view uses NASA-AMMOS 3DTilesRendererJS with Three.js, OpenStreetMap imagery, and automatically enabled worldwide terrain and mapped buildings using the existing public Cesium ion token. The Cesium reference view and mission controller remain available. It combines disaster-scene classification, recorded-footage person detection, rescue workflow, QGroundControl-compatible MAVLink telemetry, a receive-only SITL path, mission evidence, and replay.
 
 It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gazebo SITL are complete, but repeatable latch hardware evidence and physical position feedback are still required.
 
@@ -17,14 +17,15 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Disaster classification | Zero-shot CLIP categories: flood, fire, earthquake damage, landslide, storm damage, normal and uncertain | `disaster_zero_shot.py`, `image_upload_demo.py` |
 | Unified browser AI review | One upload or camera frame runs CLIP and YOLO, shows all scores and annotated person candidates, and records the review against an operator-selected map area; actual photo detections remain distinct from scripted rooftop people | `vision_service.py`, `earth_rescue_vision.js`, `tests/earth_vision_browser_check.py` |
 | India climate training | Fictional Karnataka aid mission illustrates possible monsoon stress, dry ground and fire-risk markers; Peru wet and Indonesia dry alternatives; source linked, no live El Niño forecast claimed | **Climate training scenario**, `tests/earth_fast_climate_browser_check.py` |
-| Fast startup | NASA local actors start while OSM imagery streams; Cesium reference starts with a schematic grid; neither waits for optional ion assets. 1×/2×/4× scripted playback, concurrent AI inference and identical-image result reuse | `earth_rescue.js`, `vision_service.py` |
-| NASA world renderer | Default Three.js world uses NASA-AMMOS 3DTilesRendererJS 0.5.3, streamed OSM imagery, optional hosted terrain/buildings, custom georeferenced tilesets and ODM mesh/point-cloud loading; existing mission actors remain synchronized | `world/nasa_world.js`, bundled `vendor/nasa-world.js`, `tests/nasa_world_browser_check.py` |
+| Background streaming | NASA local actors start without blocking on global terrain/buildings; the hidden reference avoids duplicate terrain rendering. Explicit fast mode remains available. 1×/2×/4× scripted playback, concurrent AI inference and identical-image result reuse | `earth_rescue.js`, `vision_service.py` |
+| NASA world renderer | Default Three.js world uses NASA-AMMOS 3DTilesRendererJS 0.5.3, streamed OSM imagery and automatic global terrain/buildings, custom georeferenced tilesets and ODM mesh/point-cloud loading; existing mission actors remain synchronized | `world/nasa_world.js`, bundled `vendor/nasa-world.js`, `tests/nasa_world_browser_check.py` |
+| Global 3D exploration | Arbitrary coordinates, source-sampled ground heights, oblique terrain-aware camera, wider high-mountain views, visible-tile/source-status reporting and explicit building-coverage limits | `tests/global_3d_browser_check.py` |
 | First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
 | Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
 | Complete 3D rescue demo | Terrain-aware local drone, flooded settlement, three rooftop people, sequential package unloading, takeoff/landing, automatic demo success/abort, overview/follow camera and HUD | **Run 3D rescue demo**, `tests/earth_rescue_mission_browser_check.py` |
-| Detailed Earth view | Enable Detailed Earth for Cesium terrain, OSM map tiles and 3D buildings using the public demo token; browser-session override remains available | `earth_rescue.js`, token field in `earth_rescue.html` |
+| Detailed Earth view | Global terrain and mapped buildings enabled by default using the public demo token; fast-mode toggle and browser-session token override remain available | `earth_rescue.js`, token field in `earth_rescue.html` |
 | Sensor degradation | Switchable camera noise, rain, fog, GPS jitter, scripted wind drift, telemetry delay and false AI alert; effects are logged and do not command PX4 | **Sensor degradation** in `earth_rescue.html` |
 | ODM dashboard integration | Read-only external-data loader for orthophoto, DSM visualization, point-cloud and textured-mesh layers | `odm/manifest.example.json`, `./run_earth_rescue.ps1 -OdmRoot <folder>` |
 | Mission evidence | Timestamped decisions plus half-second position, altitude, heading, battery, phase and package samples | **Download JSON** in the dashboard |
@@ -81,6 +82,13 @@ inspected. No actual ODM dataset was available on this PC for the new NASA path,
 so that integration uses the synthetic manifest fixture rather than claiming a
 survey-specific verification. The 100 Python tests and separate reference-view
 mission/rendering checks also passed.
+
+On 27 October, automatic global streaming and arbitrary-coordinate exploration
+were exercised at Bengaluru, Everest and Dubai. Ground heights were sampled from
+the terrain provider, rather than inferred from coarse loading meshes; the camera
+remained above the sampled surface. City buildings and mountain relief were
+visually inspected. Building geometry still depends on mapped source coverage;
+this is not a claim of photorealistic or complete building data at every location.
 
 ## Work still required
 

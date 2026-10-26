@@ -18,9 +18,10 @@ def fixture_files():
     lat, lon = map(math.radians, (12.2958, 76.6394))
     c, s = math.cos, math.sin
     radius = 6378137 / math.sqrt(1 - .00669437999014 * s(lat)**2)
+    height=1000  # Synthetic decoder fixture stays above Mysuru's real terrain.
     matrix = [-s(lon),c(lon),0,0, -s(lat)*c(lon),-s(lat)*s(lon),c(lat),0,
               c(lat)*c(lon),c(lat)*s(lon),s(lat),0,
-              radius*c(lat)*c(lon),radius*c(lat)*s(lon),radius*(1-.00669437999014)*s(lat),1]
+              (radius+height)*c(lat)*c(lon),(radius+height)*c(lat)*s(lon),(radius*(1-.00669437999014)+height)*s(lat),1]
     data = base64.b64encode(struct.pack('<9f', -20,0,0, 20,0,0, 0,40,0)).decode()
     tile = {'asset': {'version': '1.1'}, 'geometricError': 0, 'root': {
         'boundingVolume': {'box': [0,0,20, 30,0,0, 0,30,0, 0,0,30]},

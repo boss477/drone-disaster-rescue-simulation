@@ -95,7 +95,7 @@ Start the local server with `./run_earth_rescue.ps1`, then open `http://127.0.0.
 
 The **Aircraft position source** selector has two modes. The default scripted mode is self-contained. **Follow PX4 / ArduPilot SITL telemetry** reads latitude, longitude, relative altitude, heading, battery, flight mode, armed state and GPS quality from `/api/autopilot`; launch stays blocked until a live simulator feed exists. Selecting it uses the current SITL position as mission home. Fly the virtual vehicle using QGroundControl: arrival is recognized within 30 m of the drop zone, and return completes within 30 m of home below 15 m relative altitude. The mission decision workflow remains operator-controlled and simulated; this adapter sends no flight commands.
 
-Fast mode uses a schematic grid and local 3D rescue geometry. Enable **Detailed Earth** for OpenStreetMap tiles, Cesium World Terrain and hosted OpenStreetMap 3D Buildings, using the public demo token committed in `earth_rescue.js` at the project owner's request. You can override the token using the dashboard field; overrides stay in browser session storage. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
+The default NASA world streams worldwide terrain and mapped 3D buildings automatically, using the public demo token committed in `earth_rescue.js` at the project owner's request. Turn off **3D terrain & buildings** or add `?quality=fast` for a lighter view. You can override the token using the dashboard field; overrides stay in browser session storage. Terrain and building detail varies by location, and public services require an internet connection. The drone, candidate person, route, package release and QGroundControl position are simulation only. Incident and weather layers are public informational context with source delays and do not provide flight clearance or emergency instructions.
 
 After enabling Cesium 3D, use the preset buttons for an angled **Vancouver city + mountains**, **Dubai skyline**, or **Everest mountains** view. These are visualization presets; building and terrain detail depends on streamed Cesium coverage.
 
@@ -182,7 +182,7 @@ The fallback reads the LAZ coordinate system, converts to Earth-centered coordin
 ./run_earth_rescue.ps1 -OdmRoot D:\DroneRescueData\odm
 ```
 
-Press **Load ODM** to add the selected orthophoto, DSM elevation overlay, point cloud and textured mesh. The DSM overlay is a color visualization, not geometric terrain. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible. Enable **Detailed Earth** to load hosted Cesium terrain and buildings using the public demo token. To use your own token, paste it into the dashboard's password field and click **Reload 3D**; that override stays in your browser session.
+Press **Load ODM** to load the selected survey products (NASA: tiled mesh or point cloud; reference view: orthophoto, DSM overlay and 3D layers). The DSM overlay is a color visualization, not geometric terrain. The local server exposes only the configured ODM directory at `/odm-data/`; parent folders remain inaccessible. Hosted terrain and buildings are enabled by default. To use your own token, paste it into the dashboard's password field and click **Reload 3D**; that override stays in your browser session.
 
 ## QGroundControl-compatible telemetry (SITL / simulation only)
 
@@ -580,9 +580,11 @@ in the equatorial Pacific and can influence India's monsoon; reduced rainfall
 is not guaranteed. See [NOAA's ENSO explanation](https://www.noaa.gov/understanding-el-nino).
 Separate coastal Peru wet and Indonesia dry scenarios are also available.
 
-The NASA view starts local 3D geometry while OSM imagery streams in the background.
-The Cesium reference view starts with a schematic grid. Enable **Detailed Earth**
-for hosted terrain and buildings. The mission controller's CesiumJS dependency
+The NASA view starts with worldwide terrain and mapped 3D buildings enabled;
+OSM imagery and geometry stream in the background. The hidden reference/controller
+starts immediately without rendering a duplicate terrain world. Turn off
+**3D terrain & buildings** (or use `?quality=fast`) for a lighter view.
+The mission controller's CesiumJS dependency
 still loads from the CDN. Choose
 1×, 2× or 4× playback; SITL telemetry keeps its original timing. AI models run
 independently, remain in memory, and reuse the previous successful image result
@@ -605,8 +607,13 @@ two worlds at once. Select **Cesium reference view** to return to it.
 - **Whole Earth** zooms out; **Mission view** returns to the local mission.
 - OpenStreetMap imagery streams onto a globe in the background. This is a map
   texture, not satellite photography or a global textured building model.
-- **Detailed Earth** adds Cesium ion quantized-mesh terrain and OSM 3D buildings
-  through NASA's renderer using the existing token. Availability and detail vary.
+- **3D terrain & buildings** is on by default. Cesium ion quantized-mesh terrain
+  and OSM 3D buildings stream globally through NASA's renderer using the existing
+  token; they are not restricted to the demo site. Availability and detail vary.
+- **Go to any coordinates** selects a location by latitude/longitude. An oblique
+  camera settles above a terrain-source height sample; high mountain locations
+  get a wider view. Sampling is asynchronous and does not block mission setup.
+  Missing building geometry, loading, and source errors are reported separately.
 - **3D Tiles / ODM tileset URL** loads a georeferenced `tileset.json` over HTTP(S).
   Relative `/odm-data/...` paths use the existing read-only survey server mapping.
   External hosts need CORS permission. **Load ODM** uses the manifest's selected
@@ -621,3 +628,7 @@ Source: `world/nasa_world.js`; attribution: `vendor/NASA-WORLD-NOTICE.md`.
 Browser integration: `py tests/nasa_world_browser_check.py` checks the actual
 renderer, a generated synthetic georeferenced glTF tile, mission completion and
 renderer switching. Add `--details` to verify live hosted terrain/building tiles.
+`py tests/global_3d_browser_check.py` checks automatic streaming at Bengaluru,
+Everest and Dubai, sampled elevation, above-ground camera placement and coordinate
+validation. Global terrain is not a promise that every building has been mapped
+or that every location has photorealistic imagery.

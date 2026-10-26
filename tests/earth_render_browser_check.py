@@ -27,7 +27,7 @@ def main():
         browser = playwright.chromium.launch(headless=True, executable_path=browser_path())
         try:
             page = browser.new_page()
-            page.goto(url + ('&' if '?' in url else '?') + 'renderer=cesium', wait_until="domcontentloaded")
+            page.goto(url + ('&' if '?' in url else '?') + 'renderer=cesium&quality=fast', wait_until="domcontentloaded")
             page.wait_for_function("typeof viewer !== 'undefined' && viewer !== null")
             page.evaluate("viewer.camera.frustum.near = 0")
             page.wait_for_timeout(2000)

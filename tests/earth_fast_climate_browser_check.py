@@ -13,7 +13,7 @@ def main():
         page.on('pageerror', lambda error: errors.append(str(error)))
         # Keep hosted assets pending: the local scene must still become usable.
         page.route('**/api.cesium.com/**', lambda route: None)
-        page.goto('http://127.0.0.1:8877/earth_rescue.html?renderer=cesium', wait_until='domcontentloaded')
+        page.goto('http://127.0.0.1:8877/earth_rescue.html?renderer=cesium&quality=fast', wait_until='domcontentloaded')
         page.wait_for_function('typeof Cesium !== "undefined"')
         page.wait_for_function('viewer && !document.getElementById("runDemo").disabled', timeout=2000)
         assert page.evaluate('viewer.terrainProvider instanceof Cesium.EllipsoidTerrainProvider')
