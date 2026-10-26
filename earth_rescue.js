@@ -1,6 +1,7 @@
 /* Cesium rescue workflow. Map context can be real; every mission actor/action is simulated. */
 const $ = id => document.getElementById(id);
-const EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=500';
+const EONET = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open';
+const USGS = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson';
 const WEATHER = 'https://api.open-meteo.com/v1/forecast';
 // Public demo token, intentionally committed so a fresh clone can load hosted 3D.
 const DEFAULT_CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6Iml4cXdOSE5GdGlIcTFIc0oiLCJqdGkiOiI0NDdiZjExMy0wYTU1LTQwMTYtODA3YS0wOTQ5MjQ1ZDc3MzMiLCJpZCI6NDc1NzQxLCJpc3MiOiJodHRwczovL2FwaS5jZXNpdW0uY29tIiwiYXVkIjoidW5kZWZpbmVkX2RlZmF1bHQiLCJpYXQiOjE3ODgwMzk5NzJ9.RvaS4VEJiK--nGKk8ThRcwXbNNUtelpLukkvHnjK2rc';
@@ -8,8 +9,15 @@ const hazardStyle = {
   fire: { color: '#ff6048', title: 'Wildfires' },
   flood: { color: '#36a9ff', title: 'Floods' },
   storm: { color: '#c18bff', title: 'Severe storms' },
+  quake: { color: '#ffca60', title: 'Earthquakes' },
+  volcano: { color: '#ff8d48', title: 'Volcanoes' },
+  landslide: { color: '#c79b70', title: 'Landslides' },
+  other: { color: '#9bd8b5', title: 'Other natural events' },
 };
-const categoryKinds = { Wildfires: 'fire', Floods: 'flood', 'Severe Storms': 'storm' };
+const categoryKinds = { Wildfires: 'fire', Floods: 'flood', 'Severe Storms': 'storm', Earthquakes: 'quake', Volcanoes: 'volcano', Landslides: 'landslide' };
+const incidentChecks = {fire:'showFire',flood:'showFlood',storm:'showStorm',quake:'showQuake',volcano:'showVolcano',landslide:'showLandslide',other:'showOther'};
+const incidentFeeds = {eonet:{events:[],time:null,error:false},usgs:{events:[],time:null,error:false}};
+let refreshingIncidents = false;
 const viewPresets = {
   vancouver: {
     name: 'Vancouver city and Coast Mountains', lat: 49.2827, lon: -123.1207,
@@ -114,6 +122,13 @@ function followsSITL() {
 function refreshStartAvailability() {
   $('start').disabled = !selected || !targetConfirmed || running || preparingMission || (followsSITL() && !autopilotConnected);
   $('runDemo').disabled = !viewer || running || preparingMission;
+  const world=window.RescueWorld?.getState();
+  const incident3DReady=$('worldRenderer').value!=='nasa' || (world?.ready && (!world.detailed || (world.groundKnown && world.terrainVisible>0)));
+  $('rescueIncident').disabled = !viewer || !selected?.incident || running || preparingMission || !incident3DReady;
+  if (selected?.incident && !running && !preparingMission && $('incidentMissionStatus').dataset.loading==='true' && incident3DReady) {
+    $('incidentMissionStatus').dataset.loading='false';
+    $('incidentMissionStatus').textContent='3D area ready. Send the aid drone to simulate delivery to three recipients here.';
+  }
 }
 
 async function refreshAutopilot() {
@@ -403,20 +418,23 @@ function logEvent(type, detail) {
 
 function kindFor(event) {
   for (const category of event.categories || []) if (categoryKinds[category.title]) return categoryKinds[category.title];
-  return null;
+  return event.categories?.length ? 'other' : null;
 }
 
-function lastGeo(event) { return (event.geometry || []).at(-1) || null; }
+function lastGeo(event) { return [...(event.geometry || [])].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date))[0] || null; }
 
 function centroid(geometry) {
   if (!geometry?.coordinates) return null;
-  if (geometry.type === 'Point') return { lat: geometry.coordinates[1], lon: geometry.coordinates[0] };
+  if (geometry.type === 'Point') {
+    const [lon,lat]=geometry.coordinates || [];
+    return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat)<=90 && Math.abs(lon)<=180 ? {lat,lon} : null;
+  }
   const points = [];
   const visit = value => typeof value[0] === 'number' ? points.push(value) : value.forEach(visit);
   visit(geometry.coordinates);
   return points.length ? {
     lat: points.reduce((sum, point) => sum + point[1], 0) / points.length,
-    lon: points.reduce((sum, point) => sum + point[0], 0) / points.length,
+    lon: Math.atan2(points.reduce((sum,p)=>sum+Math.sin(p[0]*Math.PI/180),0),points.reduce((sum,p)=>sum+Math.cos(p[0]*Math.PI/180),0))*180/Math.PI,
   } : null;
 }
 
@@ -424,11 +442,13 @@ function drawHazards() {
   if (!viewer) return;
   hazardEntities.forEach(entity => viewer.entities.remove(entity));
   hazardEntities = [];
-  const enabled = { fire: $('showFire').checked, flood: $('showFlood').checked, storm: $('showStorm').checked };
-  hazards.forEach(event => {
+  const visible=visibleIncidents();
+  $('incidentCount').textContent=`${visible.length} reports shown / ${hazards.length} feed records. No report is not evidence of safety.`;
+  window.RescueWorld?.setIncidents(visible);
+  visible.forEach(event => {
     const kind = kindFor(event);
     const geometry = lastGeo(event);
-    if (!kind || !enabled[kind] || !geometry) return;
+    if (!kind || !geometry) return;
     const position = centroid(geometry);
     if (!position) return;
     hazardEntities.push(viewer.entities.add({
@@ -458,41 +478,120 @@ function drawHazards() {
 function renderEvents() {
   const list = $('eventList');
   list.textContent = '';
-  const enabled = { fire: $('showFire').checked, flood: $('showFlood').checked, storm: $('showStorm').checked };
-  hazards.filter(event => enabled[kindFor(event)]).slice(0, 70).forEach(event => {
+  const visible=visibleIncidents();
+  visible.forEach(event => {
     const kind = kindFor(event);
     const geometry = lastGeo(event);
     const center = centroid(geometry);
     if (!center) return;
     const button = document.createElement('button');
     button.className = 'event';
+    button.dataset.incidentId=event.id;
+    button.classList.toggle('selected',selected?.incident?.id===event.id);
     const dot = document.createElement('span');
     dot.className = 'dot';
     dot.style.background = hazardStyle[kind].color;
     const text = document.createElement('span');
     text.textContent = event.title;
     const meta = document.createElement('small');
-    meta.textContent = `${hazardStyle[kind].title} · ${geometry.date ? new Date(geometry.date).toLocaleString() : 'date unavailable'}`;
+    meta.textContent = `${hazardStyle[kind].title} · ${event.feed || 'NASA EONET'} · reported ${geometry.date ? new Date(geometry.date).toLocaleString() : 'date unavailable'}`;
     text.append(meta);
     button.append(dot, text);
-    button.onclick = () => setLocation(center.lat, center.lon, event.title, 'NASA EONET', 'event centroid; boundary unknown');
+    button.onclick = () => selectIncident(event.id);
     list.append(button);
   });
   drawHazards();
+  if (!visible.length) list.textContent='No reports match these filters. This does not establish that the area is safe.';
+}
+
+function visibleIncidents() {
+  const days=Number($('incidentAge').value);
+  const query=$('incidentSearch').value.trim().toLowerCase();
+  return hazards.filter(event=>{
+    const kind=kindFor(event), geometry=lastGeo(event);
+    return kind && $(incidentChecks[kind]).checked && geometry && centroid(geometry) &&
+      (!Number.isFinite(days) || Date.now()-Date.parse(geometry.date)<=days*86400000) &&
+      (!query || event.title.toLowerCase().includes(query));
+  }).sort((a,b)=>Date.parse(lastGeo(b).date)-Date.parse(lastGeo(a).date));
+}
+
+function selectIncident(id) {
+  if (running || preparingMission) {
+    $('incidentMissionStatus').textContent='Finish or reset the current mission before selecting another incident.';
+    return;
+  }
+  const event=hazards.find(item=>item.id===id), geometry=event && lastGeo(event);
+  const position=geometry && centroid(geometry);
+  if (!position) return;
+  const kind=kindFor(event);
+  setLocation(Math.max(-89.99,position.lat-250/111320),position.lon,event.title,event.feed || 'NASA EONET','reported point/centroid; incident boundary and drop safety unknown');
+  selected.incident={id:event.id,title:event.title,kind,feed:event.feed || 'NASA EONET',reported_at:geometry.date,
+    retrieved_at:event.retrieved_at,location:position,sources:event.sources || []};
+  selected.demoScene=kind==='flood' || kind==='storm';
+  selected.climate=kind==='fire' ? 'incident-fire' : 'neutral';
+  if (targetMarker) {
+    targetMarker.position=Cesium.Cartesian3.fromDegrees(position.lon,position.lat,30);
+    targetMarker.label.text='REPORTED AREA · SIMULATED DROP ZONE';
+  }
+  $('incidentContext').hidden=false;
+  $('incidentTitle').textContent=event.title;
+  $('incidentReport').textContent=`${selected.incident.feed} · latest report ${new Date(geometry.date).toLocaleString()} · ${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · retrieved ${event.retrieved_at ? new Date(event.retrieved_at).toLocaleString() : 'unknown'}`;
+  $('provenance').textContent=`SOURCE: ${selected.incident.feed} · REPORT: ${geometry.date} · LOCATION: reported point/centroid, boundary unknown · DROP ZONE: simulated`;
+  const source=(event.sources || []).find(item=>{try{return ['http:','https:'].includes(new URL(item.url).protocol);}catch{return false;}});
+  $('incidentSource').hidden=!source;
+  if (source) $('incidentSource').href=source.url;
+  $('incidentMissionStatus').textContent='Opening the reported area in 3D. Send the aid drone to watch a simulated loading, delivery and return at this location.';
+  $('incidentMissionStatus').dataset.loading='true';
+  $('candidate').querySelector('b').textContent='SIMULATED recipients near the reported area';
+  $('candidate').querySelector('span').textContent='Three virtual recipients for this exercise; no person detections have been verified.';
+  $('selection').textContent=`${event.title} · reported at ${position.lat.toFixed(5)}, ${position.lon.toFixed(5)} · simulated base 250 m south`;
+  refreshStartAvailability();
+  logEvent('INCIDENT_SELECTED',JSON.stringify(selected.incident));
+  renderEvents();
+}
+
+async function runIncidentRescue() {
+  if (!selected?.incident || !viewer || running || preparingMission || $('rescueIncident').disabled) return;
+  $('flightSource').value='scripted';
+  $('scenario').value=$('incidentOutcome').value;
+  $('packageCount').value='3';
+  $('routeRadius').value='250';
+  $('rainEffect').checked=['flood','storm'].includes(selected.incident.kind);
+  syncSensorEffects();
+  targetConfirmed=true;
+  $('candidate').classList.add('confirmed');
+  $('incidentMissionStatus').textContent='SIMULATED aid mission: three recipients and packages. Automatic demo review does not authorize any hardware release.';
+  logEvent('INCIDENT_DEMO_REVIEW','Automatic simulated candidate/release decisions for '+selected.incident.id);
+  await buildMission(true);
+  if (mission?.incident) $('followDrone').checked=true;
 }
 
 async function refreshEvents() {
-  $('feedStatus').textContent = 'Loading active worldwide events…';
-  try {
-    const response = await fetch(EONET, { cache: 'no-store' });
-    if (!response.ok) throw Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    hazards = (data.events || []).filter(event => kindFor(event) && lastGeo(event));
-    $('feedStatus').textContent = `${hazards.length} active event records · refreshed ${new Date().toLocaleTimeString()}`;
-    renderEvents();
-  } catch {
-    $('feedStatus').textContent = 'Event feed unavailable; the mission demo still works from a map selection.';
+  if (refreshingIncidents) return;
+  refreshingIncidents=true;
+  $('feedStatus').textContent='Refreshing NASA EONET and USGS reports…';
+  const results=await Promise.allSettled([EONET,USGS].map(async url=>{
+    const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  }));
+  for (const [index,key] of ['eonet','usgs'].entries()) {
+    const result=results[index], feed=incidentFeeds[key];
+    feed.error=result.status==='rejected';
+    if (feed.error) continue;
+    feed.time=new Date().toISOString();
+    feed.events=key==='eonet' ? (result.value.events || []).map(event=>({...event,feed:'NASA EONET',retrieved_at:feed.time}))
+      : (result.value.features || []).filter(f=>f.properties?.type==='earthquake' && Number.isFinite(f.properties.time) && f.geometry?.type==='Point').map(f=>({
+        id:'usgs-'+f.id,title:f.properties.title || `M${f.properties.mag} ${f.properties.place}`,feed:'USGS',retrieved_at:feed.time,
+        categories:[{title:'Earthquakes'}],sources:[{id:'USGS',url:f.properties.url}],
+        geometry:[{type:'Point',coordinates:f.geometry?.coordinates?.slice(0,2),date:new Date(f.properties.time).toISOString()}]}));
   }
+  hazards=[...incidentFeeds.eonet.events,...incidentFeeds.usgs.events].filter(event=>kindFor(event) && lastGeo(event) && centroid(lastGeo(event)));
+  const failed=Object.entries(incidentFeeds).filter(([,feed])=>feed.error).map(([key])=>key.toUpperCase());
+  $('feedStatus').textContent=`${hazards.length} feed records · checked ${new Date().toLocaleString()} · `+
+    (failed.length ? `${failed.join(', ')} unavailable; retained records may be stale.` : 'NASA EONET + USGS connected. Report times differ from refresh time.');
+  refreshingIncidents=false;
+  renderEvents();
 }
 
 async function loadWeather(lat, lon) {
@@ -515,6 +614,7 @@ async function loadWeather(lat, lon) {
 }
 
 function targetFor(base = selected) {
+  if (base.incident?.location) return {...base.incident.location};
   const radius = Math.max(100, Math.min(2000, Number($('routeRadius').value) || 500));
   return { lat: base.lat + radius / 111320, lon: base.lon };
 }
@@ -538,6 +638,9 @@ function setLocation(lat, lon, name, source, uncertainty) {
   missionPreparation += 1;
   preparingMission = false;
   selected = { lat, lon, name, source, uncertainty, timestamp: new Date().toISOString() };
+  $('incidentContext').hidden=true;
+  $('candidate').querySelector('b').textContent='AI candidate: possible stranded person';
+  $('candidate').querySelector('span').textContent='SIMULATED detection · confidence 78% · operator review required';
   window.RescueWorld?.selectArea(selected);
   targetConfirmed = false;
   $('selection').textContent = `${name} · ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
@@ -683,12 +786,21 @@ async function buildMission(autoDemo = false) {
   refreshStartAvailability();
   $('demoStatus').textContent = 'Preparing terrain and 3D rescue scene…';
   let terrain;
-  try { terrain = await RescueScene.terrainProfile(activeViewer,base,target); }
+  let sceneDecks={baseDeck:0,dropDeck:11};
+  try {
+    if (base.incident && $('worldRenderer').value==='nasa' && window.RescueWorld?.getState().detailed) {
+      const prepared=await window.RescueWorld.prepareIncidentScene(base,target);
+      terrain=prepared.terrain;
+      sceneDecks=prepared;
+      base.sceneDecks={baseDeck:prepared.baseDeck,dropDeck:prepared.dropDeck};
+    } else terrain = await RescueScene.terrainProfile(activeViewer,base,target);
+  }
   catch (error) {
     if (generation === missionPreparation) {
       preparingMission = false;
       refreshStartAvailability();
       $('demoStatus').textContent = `Scene preparation interrupted: ${error.message || error}. Retry the demo.`;
+      if (base.incident) $('incidentMissionStatus').textContent=$('demoStatus').textContent;
     }
     return;
   }
@@ -699,9 +811,14 @@ async function buildMission(autoDemo = false) {
   const packageCount = Math.max(1, Math.min(6, Number($('packageCount').value) || 1));
   mission = {
     base,
+    incident: base.incident || null,
     climate: base.climate || 'neutral',
     target,
     terrain,
+    baseAltitude:sceneDecks.baseDeck+3,
+    dropAltitude:sceneDecks.dropDeck+1,
+    hoverAltitude:base.incident ? Math.max(35,sceneDecks.dropDeck+25) : 35,
+    cruiseAltitude:Math.max(75,sceneDecks.dropDeck+60,sceneDecks.baseDeck+40),
     autoDemo,
     people: 3,
     packageCount,
@@ -727,7 +844,7 @@ async function buildMission(autoDemo = false) {
   });
   routeEntities.push(...RescueScene.addSite(viewer,base,target,terrain,Boolean(base.demoScene),mission.climate));
   const routePositions = terrain.heights.map((height,index) => Cesium.Cartesian3.fromDegrees(
-    base.lon + (target.lon-base.lon)*index/12,base.lat + (target.lat-base.lat)*index/12,height+75));
+    base.lon + (target.lon-base.lon)*index/12,base.lat + (target.lat-base.lat)*index/12,height+mission.cruiseAltitude));
   routeEntities.push(viewer.entities.add({
     polyline: {
       positions: new Cesium.CallbackProperty(() => routePositions, false),
@@ -735,7 +852,7 @@ async function buildMission(autoDemo = false) {
       material: new Cesium.PolylineDashMaterialProperty({ color: Cesium.Color.CYAN, dashLength: 12 }),
     },
   }));
-  const aircraft = RescueScene.addDrone(viewer,missionWorldPosition({ ...base, alt: 3 }),() => missionClock);
+  const aircraft = RescueScene.addDrone(viewer,missionWorldPosition({ ...base, alt: mission.baseAltitude }),() => missionClock);
   drone = aircraft.body;
   routeEntities.push(...aircraft.parts);
   packages = Array.from({ length: packageCount }, (_, index) => viewer.entities.add({
@@ -844,14 +961,15 @@ function awaitReleaseDecision() {
 
 function missionPosition() {
   const elapsed = missionClock - mission.phaseStart;
+  const baseAltitude=mission.baseAltitude ?? 3, cruise=mission.cruiseAltitude ?? 75, hover=mission.hoverAltitude ?? 35;
   if (mission.phase === 'loading') {
     if (elapsed >= 3) setMissionPhase('takeoff', 'Aid loaded. Taking off slowly.');
-    return { ...selected, alt: 3 };
+    return { ...selected, alt: baseAltitude };
   }
   if (mission.phase === 'takeoff') {
     const fraction = Math.min(elapsed / 4, 1);
     if (fraction >= 1) setMissionPhase('outbound', 'Flying to the confirmed simulated drop zone.');
-    return { ...selected, alt: 3 + 72 * fraction };
+    return { ...selected, alt: baseAltitude + (cruise-baseAltitude) * fraction };
   }
   if (mission.phase === 'outbound') {
     const livePosition = autopilotPosition();
@@ -865,19 +983,19 @@ function missionPosition() {
     if (fraction >= 1) {
       setMissionPhase('descending', 'Three simulated people located. Descending toward the rooftop drop zone.');
     }
-    return { ...interpolate(selected, mission.target, fraction), alt: 75 };
+    return { ...interpolate(selected, mission.target, fraction), alt: cruise };
   }
   if (mission.phase === 'descending') {
     const fraction = Math.min(elapsed / 4, 1);
     if (fraction >= 1) awaitReleaseDecision();
-    return { ...mission.target, alt: 75 - 40 * fraction };
+    return { ...mission.target, alt: cruise - (cruise-hover) * fraction };
   }
   if (mission.phase === 'awaiting_approval') {
     if (mission.autoDemo && elapsed >= 2) {
       if (mission.scenario === 'success') approveSimulatedRelease();
       else abortMission('Automatic demo review found an unsafe drop zone. All aid retained; returning to base.');
     }
-    return { ...mission.target, alt: 35 };
+    return { ...mission.target, alt: hover };
   }
   if (mission.phase === 'releasing') {
     const delivered = Math.min(mission.packageCount, Math.floor(elapsed / 3));
@@ -889,12 +1007,12 @@ function missionPosition() {
       mission.returnFrom = mission.target;
       setMissionPhase('ascending', 'All packages delivered. Climbing for the return flight.');
     }
-    return { ...mission.target, alt: 35 };
+    return { ...mission.target, alt: hover };
   }
   if (mission.phase === 'ascending') {
     const fraction = Math.min(elapsed / 4, 1);
     if (fraction >= 1) setMissionPhase('returning', 'Returning to the aid base.');
-    return { ...mission.target, alt: 35 + 40 * fraction };
+    return { ...mission.target, alt: hover + (cruise-hover) * fraction };
   }
   if (mission.phase === 'returning' || mission.phase === 'aborted_return') {
     const livePosition = autopilotPosition();
@@ -907,15 +1025,15 @@ function missionPosition() {
     const fraction = Math.min(elapsed / 10, 1);
     const position = interpolate(mission.returnFrom || mission.target, selected, fraction);
     if (fraction >= 1) setMissionPhase('landing', 'Arrived at base. Landing slowly.');
-    const startAltitude = mission.returnFrom?.alt ?? 75;
-    return { ...position, alt: startAltitude + (75 - startAltitude) * Math.min(fraction * 3, 1) };
+    const startAltitude = mission.returnFrom?.alt ?? cruise;
+    return { ...position, alt: startAltitude + (cruise - startAltitude) * Math.min(fraction * 3, 1) };
   }
   if (mission.phase === 'landing') {
     const fraction = Math.min(elapsed / 4, 1);
     if (fraction >= 1) finishMission(mission.outcome === 'aborted' ? 'aborted' : 'delivered');
-    return { ...selected, alt: 75 - 72 * fraction };
+    return { ...selected, alt: cruise - (cruise-baseAltitude) * fraction };
   }
-  return { ...selected, alt: 3 };
+  return { ...selected, alt: baseAltitude };
 }
 
 function postState(now, position) {
@@ -953,6 +1071,7 @@ function postState(now, position) {
     packages_delivered: mission.delivered,
     people_detected: mission.people + ($('falseDetections').checked ? 1 : 0),
     automatic_demo: mission.autoDemo,
+    incident_id: mission.incident?.id || null,
     false_detections_simulated: $('falseDetections').checked ? 1 : 0,
     sensor_effects: mission.sensorEffects,
     site_index: 0,
@@ -993,15 +1112,16 @@ function animateMission(now, generation) {
   }
   packages.forEach((item, index) => {
     if (index < mission.delivered) {
-      item.position = RescueScene.worldPosition(mission.terrain, { lon: mission.target.lon + 0.000025 * index, lat: mission.target.lat, alt: 12 });
+      item.position = RescueScene.worldPosition(mission.terrain, { lon: mission.target.lon + 0.000025 * index, lat: mission.target.lat, alt: mission.dropAltitude ?? 12 });
       item.box.material = Cesium.Color.fromCssColorString('#65dec0');
     } else if (mission.phase === 'releasing' && index === mission.delivered) {
       const fraction = Math.min(((missionClock - mission.phaseStart) / 3) - index, 1);
-      item.position = RescueScene.worldPosition(mission.terrain, { ...mission.target, alt: 32 - 20 * Math.max(0,fraction) });
+      const top=(mission.hoverAltitude ?? 35)-3, bottom=mission.dropAltitude ?? 12;
+      item.position = RescueScene.worldPosition(mission.terrain, { ...mission.target, alt: top-(top-bottom)*Math.max(0,fraction) });
     } else {
       const loading = mission.phase === 'loading';
       item.position = RescueScene.worldPosition(mission.terrain, { lon: position.lon + index * 0.000012,
-        lat: position.lat, alt: loading ? 1 : Math.max(1, position.alt - 2 - index * 0.3) });
+        lat: position.lat, alt: loading ? (mission.baseAltitude ?? 3)-2 : Math.max(1, position.alt - 2 - index * 0.3) });
     }
   });
   $('hudPhase').textContent = $('phase').textContent;
@@ -1113,7 +1233,11 @@ sensorControlIds.forEach(id => {
 document.querySelectorAll('[data-preset]').forEach(button => {
   button.onclick = () => flyToPreset(button.dataset.preset);
 });
-['showFire', 'showFlood', 'showStorm'].forEach(id => $(id).onchange = renderEvents);
+Object.values(incidentChecks).forEach(id => $(id).onchange = renderEvents);
+$('incidentAge').onchange=renderEvents;
+$('incidentSearch').oninput=renderEvents;
+$('rescueIncident').onclick=runIncidentRescue;
+$('showIncidentGlobe').onclick=()=>window.RescueWorld?.wholeEarth();
 $('refresh').onclick = refreshEvents;
 $('confirmTarget').onclick = () => {
   if (!selected || running) return;
@@ -1196,7 +1320,7 @@ function startReplay(record) {
   routeEntities.push(viewer.entities.add({
     polyline: { positions: Cesium.Cartesian3.fromDegreesArrayHeights(positions), width: 4, material: Cesium.Color.fromCssColorString('#ffc45c') },
   }));
-  if (mission.terrain) routeEntities.push(...RescueScene.addSite(viewer,mission.terrain.base,
+  if (mission.terrain) routeEntities.push(...RescueScene.addSite(viewer,mission.base || mission.terrain.base,
     mission.target,mission.terrain,Boolean(mission.terrain.base.demoScene),mission.climate || 'neutral'));
   const aircraft = RescueScene.addDrone(viewer,Cesium.Cartesian3.fromDegrees(samples[0].lon,
     samples[0].lat,samples[0].height_ellipsoid_m ?? samples[0].alt),() => performance.now()/1000);
@@ -1260,7 +1384,7 @@ if (new URLSearchParams(location.search).get('quality') === 'fast') $('detailedE
 if (new URLSearchParams(location.search).get('renderer') === 'cesium') $('worldRenderer').value = 'cesium';
 const initialGlobe = initGlobe(rememberedToken);
 refreshEvents();
-setInterval(refreshEvents, 10 * 60 * 1000);
+setInterval(refreshEvents, 5 * 60 * 1000);
 refreshAutopilot();
 setInterval(refreshAutopilot, 400);
 

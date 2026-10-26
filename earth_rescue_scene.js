@@ -52,7 +52,7 @@ const RescueScene = (() => {
   }
 
   function addSite(viewer, base, target, profile, flooded, climate = 'neutral') {
-    const dry = climate === 'elnino-dry' || climate === 'elnino-india';
+    const dry = climate === 'elnino-dry' || climate === 'elnino-india' || climate === 'incident-fire';
     const entities = [];
     const add = options => {
       // Keep this small training scene on Cesium's synchronous geometry path;
@@ -72,11 +72,12 @@ const RescueScene = (() => {
     const at = (position, alt) => worldPosition(profile, { ...position, alt });
     // Local ground gives the actors an immediate visible setting even when map tiles stall.
     const ground = [[-145,-100],[145,-100],[145,380],[-145,380]].map(([x,y]) => offset(base,x,y));
-    add({ polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(ground.flatMap(p => [p.lon,p.lat])),
+    if (!base.incident) add({ polygon: { hierarchy: Cesium.Cartesian3.fromDegreesArray(ground.flatMap(p => [p.lon,p.lat])),
       height: groundHeight(profile,base) + 0.1,
       material: Cesium.Color.fromCssColorString(dry ? '#a37e49' : '#547a63') } });
-    add({ position: at(base, 0.3), ellipse: { semiMajorAxis: 15, semiMinorAxis: 15,
-      height: groundHeight(profile, base) + 0.3, material: Cesium.Color.fromCssColorString('#244a4c') },
+    const baseDeck=base.sceneDecks?.baseDeck || 0;
+    add({ position: at(base, baseDeck+0.3), ellipse: { semiMajorAxis: 15, semiMinorAxis: 15,
+      height: groundHeight(profile, base) + baseDeck+0.3, material: Cesium.Color.fromCssColorString('#244a4c') },
       label: { text: 'H · AID BASE', font: 'bold 14px sans-serif', fillColor: Cesium.Color.CYAN,
         pixelOffset: new Cesium.Cartesian2(0, -24), disableDepthTestDistance: Infinity } });
     if (flooded) {
@@ -93,14 +94,16 @@ const RescueScene = (() => {
         add({position: at(point,17),ellipsoid:{radii:new Cesium.Cartesian3(7,7,9),material:Cesium.Color.GRAY.withAlpha(0.35)}});
       });
     }
-    [[0,0],[-65,25],[65,30],[-55,-35],[55,-30]].forEach(([x,y], index) => {
+    (base.incident ? [] : [[0,0],[-65,25],[65,30],[-55,-35],[55,-30]]).forEach(([x,y], index) => {
       const center = offset(target, x, y);
       add({ position: at(center, 5), box: { dimensions: new Cesium.Cartesian3(24,20,10),
         material: Cesium.Color.fromCssColorString(index ? '#b3a691' : '#d4d9d2') } });
       add({ position: at(center, 10.5), box: { dimensions: new Cesium.Cartesian3(27,23,1),
         material: Cesium.Color.fromCssColorString(index ? '#9b6255' : '#486476') } });
     });
-    const roof = 11;
+    const roof = base.sceneDecks?.dropDeck ?? 11;
+    if (base.incident) add({position:at(target,roof-.3),box:{dimensions:new Cesium.Cartesian3(14,12,.6),
+      material:Cesium.Color.fromCssColorString('#486476')}});
     [-5,0,5].forEach((x, index) => {
       const center = offset(target, x, 3);
       add({ position: at(center, roof + 1.2), ellipsoid: { radii: new Cesium.Cartesian3(0.7,0.5,1.2),

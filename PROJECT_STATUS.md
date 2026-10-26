@@ -22,7 +22,8 @@ It is **not yet a validated real rescue drone**. AI evaluation and real PX4/Gaze
 | Global 3D exploration | Arbitrary coordinates, source-sampled ground heights, oblique terrain-aware camera, wider high-mountain views, visible-tile/source-status reporting and explicit building-coverage limits | `tests/global_3d_browser_check.py` |
 | First-run model handling | Friendly cache check, first-use download, repository-local reuse and offline mode | `./setup.ps1`, `py disaster_zero_shot.py --check` |
 | Basic 3D rescue | Bundled Three.js flood scene, slow drone, people, package loading/unloading, pause/reset/complete states | `./run_rescue_simulation.ps1` |
-| Live map context | OpenStreetMap, NASA EONET events and Open-Meteo weather with timestamps/source warnings | `./run_live_operations.ps1` |
+| Live map context | OpenStreetMap, NASA EONET records, USGS M2.5+ day earthquake feed and Open-Meteo weather with report/retrieval timestamps | `earth_rescue.html?incidents=1`, `./run_live_operations.ps1` |
+| Incident-local aid demo | Click a NASA globe marker or report, open its actual reported area in 3D, then simulate three-package delivery or abort there; source provenance and incident ID remain in logs/telemetry, and automatic demo approvals cannot actuate hardware | `tests/incident_rescue_browser_check.py`, `tests/live_incident_feed_check.py --mission` |
 | Operator workflow | Confirm/reject candidate, success/abort scenarios, independent release approval and blocked unsafe release | `./run_earth_rescue.ps1` |
 | Complete 3D rescue demo | Terrain-aware local drone, flooded settlement, three rooftop people, sequential package unloading, takeoff/landing, automatic demo success/abort, overview/follow camera and HUD | **Run 3D rescue demo**, `tests/earth_rescue_mission_browser_check.py` |
 | Detailed Earth view | Global terrain and mapped buildings enabled by default using the public demo token; fast-mode toggle and browser-session token override remain available | `earth_rescue.js`, token field in `earth_rescue.html` |
@@ -89,6 +90,16 @@ the terrain provider, rather than inferred from coarse loading meshes; the camer
 remained above the sampled surface. City buildings and mountain relief were
 visually inspected. Building geometry still depends on mapped source coverage;
 this is not a claim of photorealistic or complete building data at every location.
+
+The incident workflow was checked using both deterministic report fixtures and
+live NASA EONET / USGS connections. The live check selected the reported BEE HAVEN
+wildfire location in Florida and completed a **simulated** three-package mission
+there. The report's latest observation was several days old; the UI preserves that
+time rather than calling it a fresh observation. Separate browser checks covered
+age/category filters, globe-marker clicks, terrain and roof display clearances,
+successful and aborted deliveries, source failure with retained stale records,
+and a blocked physical-release gate. No real rescue, victims or current damage
+were verified by these checks.
 
 ## Work still required
 

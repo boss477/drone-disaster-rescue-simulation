@@ -16,6 +16,9 @@ const camera = new THREE.PerspectiveCamera(50, 1, 0.5, 1e8);
 const root = new THREE.Group();
 root.matrixAutoUpdate = false;
 scene.add(root);
+const incidentMarkers=new THREE.Group();
+root.add(incidentMarkers);
+const markerTextures=new Map();
 const actors = new THREE.Group();
 scene.add(actors);
 const frame = new THREE.Matrix4();
@@ -62,6 +65,51 @@ function anchor(area) {
   element('exploreLat').value=area.lat.toFixed(6);
   element('exploreLon').value=area.lon.toFixed(6);
   if (!sameArea && detailedWorld && ready) sampleGround();
+  positionIncidentMarkers();
+}
+
+function positionIncidentMarkers() {
+  for (const sprite of incidentMarkers.children) {
+    const {lat,lon}=sprite.userData.position;
+    const near=Math.abs(lat-origin.lat)<.2 && Math.abs(lon-origin.lon)<.2;
+    const height=near && groundKnown ? groundHeight+40 : 10000;
+    WGS84_ELLIPSOID.getCartographicToPosition(THREE.MathUtils.degToRad(lat),THREE.MathUtils.degToRad(lon),height,sprite.position);
+  }
+  incidentMarkers.updateMatrixWorld(true);
+}
+
+function setIncidents(events) {
+  for (const sprite of [...incidentMarkers.children]) {incidentMarkers.remove(sprite);sprite.material.dispose();}
+  for (const event of events) {
+    const position=centroid(lastGeo(event)), kind=kindFor(event);
+    if (!position || !kind) continue;
+    if (!markerTextures.has(kind)) {
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=64;
+      const ctx=canvas.getContext('2d');
+      ctx.fillStyle=hazardStyle[kind].color;ctx.strokeStyle='white';ctx.lineWidth=5;
+      ctx.beginPath();ctx.arc(32,32,25,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#10232b';ctx.font='bold 28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText({fire:'F',flood:'W',storm:'S',quake:'Q',volcano:'V',landslide:'L',other:'•'}[kind],32,33);
+      markerTextures.set(kind,new THREE.CanvasTexture(canvas));
+    }
+    const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:markerTextures.get(kind),sizeAttenuation:false,depthTest:true,depthWrite:false,alphaTest:.1}));
+    sprite.scale.set(.018,.018,1);
+    sprite.userData={incidentId:event.id,position};
+    incidentMarkers.add(sprite);
+  }
+  positionIncidentMarkers();
+}
+
+function incidentScreens() {
+  camera.updateMatrixWorld();root.updateMatrixWorld(true);
+  const eye=camera.position.clone().applyMatrix4(frame);
+  return incidentMarkers.children.map(sprite=>{
+    const p=sprite.getWorldPosition(new THREE.Vector3()).project(camera);
+    const normal=WGS84_ELLIPSOID.getPositionToNormal(sprite.position,new THREE.Vector3());
+    const front=eye.clone().sub(sprite.position).dot(normal)>0;
+    return {id:sprite.userData.incidentId,x:(p.x+1)*worldElement.clientWidth/2,y:(1-p.y)*worldElement.clientHeight/2,
+      visible:front && p.z>-1 && p.z<1 && Math.abs(p.x)<1 && Math.abs(p.y)<1};
+  });
 }
 
 function missionBaseHeight() {
@@ -72,6 +120,7 @@ function applyGroundHeight(height) {
   const firstGround=!groundKnown;
   groundKnown=true;
   groundHeight=height;
+  positionIncidentMarkers();
   const next=height-missionBaseHeight();
   const delta=next-actors.position.y;
   actors.position.y=next;
@@ -112,6 +161,31 @@ async function sampleGround() {
     clearTimeout(timer);
     if (generation===groundSampleGeneration) groundSampling=false;
   }
+}
+
+async function prepareIncidentScene(base,target) {
+  const points=Array.from({length:13},(_,i)=>Cesium.Cartographic.fromDegrees(
+    base.lon+(target.lon-base.lon)*i/12,base.lat+(target.lat-base.lat)*i/12));
+  if (!terrainSampler) terrainSampler=Cesium.createWorldTerrainAsync();
+  let timer;
+  try {
+    const provider=await terrainSampler;
+    await Promise.race([Cesium.sampleTerrainMostDetailed(provider,points),new Promise((_,reject)=>{
+      timer=setTimeout(()=>reject(new Error('Incident terrain sampling timed out. Retry the aid mission.')),20000);
+    })]);
+  } finally {clearTimeout(timer);}
+  if (!points.every(p=>Number.isFinite(p.height))) throw new Error('Incident route elevation is unavailable.');
+  const terrain={base:{...base},target:{...target},sampled:true,heights:points.map(p=>p.height)};
+  root.updateMatrixWorld(true);
+  function deck(position,height) {
+    const p=WGS84_ELLIPSOID.getCartographicToPosition(THREE.MathUtils.degToRad(position.lat),
+      THREE.MathUtils.degToRad(position.lon),height,new THREE.Vector3());
+    local(p,p);
+    const hit=worldLayers[2] ? new THREE.Raycaster(new THREE.Vector3(p.x,20000,p.z),new THREE.Vector3(0,-1,0),0,40000)
+      .intersectObject(worldLayers[2].group,true)[0] : null;
+    return Math.max(0,Math.min(2000,(hit?.point.y ?? p.y)-p.y))+0.5;
+  }
+  return {terrain,baseDeck:deck(base,points[0].height),dropDeck:Math.max(deck(target,points.at(-1).height),base.demoScene ? 5 : 0)};
 }
 
 function resize() {
@@ -489,6 +563,11 @@ try {
     ray.setFromCamera(new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,1-(e.clientY-rect.top)/rect.height*2),camera);
     const ecefRay=ray.ray.clone().applyMatrix4(frame);
     const hit=WGS84_ELLIPSOID.intersectRay(ecefRay,new THREE.Vector3());
+    const marker=ray.intersectObjects(incidentMarkers.children,false)[0];
+    if (marker && (!hit || marker.distance<=ray.ray.origin.distanceTo(hit.clone().applyMatrix4(inverse))+25000)) {
+      selectIncident(marker.object.userData.incidentId);
+      return;
+    }
     if (hit) {
       const area=WGS84_ELLIPSOID.getPositionToCartographic(hit,{});
       setLocation(THREE.MathUtils.radToDeg(area.lat),THREE.MathUtils.radToDeg(area.lon),'NASA world map selection','operator','approximate map selection');
@@ -496,11 +575,11 @@ try {
   });
   ready=true;
   anchor(typeof selected!=='undefined' && selected ? selected : origin);
-  window.RescueWorld={selectArea,missionView,loadWorld,wholeEarth,loadODM,clearCustom,flyToPreset,
+  window.RescueWorld={selectArea,missionView,loadWorld,wholeEarth,loadODM,clearCustom,flyToPreset,setIncidents,incidentScreens,prepareIncidentScene,
     getState:()=>({engine:'NASA-AMMOS/3DTilesRendererJS',version:'0.5.3',active,ready,modelLoads,failures,
       detailed:detailedWorld,groundKnown,groundSampling,groundHeight,viewKind,
       cameraAltitude:WGS84_ELLIPSOID.getPositionElevation(camera.position.clone().applyMatrix4(frame)),
-      actorCount:meshes.size,origin:{...origin},drawCalls:renderer.info.render.calls,
+      actorCount:meshes.size,incidentMarkers:incidentMarkers.children.length,origin:{...origin},drawCalls:renderer.info.render.calls,
       terrainModels:terrainLayer?.loadedModels || 0,buildingModels:worldLayers[2]?.loadedModels || 0,
       terrainVisible:terrainLayer?.visibleTiles.size || 0,buildingVisible:worldLayers[2]?.visibleTiles.size || 0,
       visibleTiles:worldLayers.reduce((n,t)=>n+t.visibleTiles.size,0),customVisible:customLayer?.visibleTiles.size || 0})};
@@ -513,6 +592,9 @@ try {
   window.addEventListener('resize',resize);
   setMode();
   loadWorld(element('detailedEarth').checked);
+  setIncidents(visibleIncidents());
+  const query=new URLSearchParams(location.search);
+  if (query.get('incidents')==='1') wholeEarth();
   requestAnimationFrame(animate);
 } catch (error) {
   status.textContent=`NASA world could not start: ${error.message}. Using the Cesium reference view.`;

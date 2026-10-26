@@ -632,3 +632,42 @@ renderer switching. Add `--details` to verify live hosted terrain/building tiles
 Everest and Dubai, sampled elevation, above-ground camera placement and coordinate
 validation. Global terrain is not a promise that every building has been mapped
 or that every location has photorealistic imagery.
+
+## Report → local 3D view → simulated aid delivery
+
+Open `earth_rescue.html?incidents=1` on the running local server. The first panel
+shows NASA EONET open incident records and USGS M2.5+ earthquakes from the past
+day. Fire, flood, storm, earthquake, volcano, landslide and other categories have
+separate filters. The default age filter uses the latest report from the past
+30 days; older open catalog records are available explicitly. Reports refresh
+every five minutes. A failed source retains labelled stale records from that
+source; refresh time and event/report time are shown separately.
+
+1. Click a coloured globe marker or report in the list. The actual reported point
+   or approximate polygon centroid opens in an angled NASA 3D view, with available
+   terrain and mapped buildings. The original source link and report time appear.
+2. Choose **Send aid drone · simulated** once the 3D terrain is ready. The mission
+   stays near this report; it does not jump to the fixed India training location.
+3. Watch the virtual drone load three packages, approach three simulated recipients,
+   unload and return. The camera follows it by default; disable Follow to inspect
+   the whole area. **Unsafe zone: abort and return** retains all packages.
+
+For incident missions, terrain samples along the route and available building
+roof geometry position the virtual base/drop platforms and set display flight
+heights. These are visual simulation estimates, not obstacle avoidance, a surveyed
+landing zone or flight clearance. Original 3D map content is retained; schematic
+hazard effects and recipient platforms are explicitly simulated. A report does
+not verify trapped people, aid needs, damage or safe delivery conditions. Automatic
+demo approval remains blocked from the physical payload-release gate.
+
+Sources: [NASA EONET v3](https://eonet.gsfc.nasa.gov/docs/v3) and
+[USGS GeoJSON feeds](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php).
+This is curated near-real-time metadata with incomplete coverage and source
+delays; EONET catalog “open” does not establish that a disaster is still happening.
+Terrain and buildings are reference data, not live damage reconstruction.
+
+Verification: `py tests/incident_rescue_browser_check.py` uses synthetic report
+fixtures with the actual world renderer to check marker clicks, filters, source
+provenance, terrain/roof-aware delivery, abort, release gating and a partial feed
+outage. `py tests/live_incident_feed_check.py --mission` exercises real feed
+connections and a simulated delivery at a real reported event location.

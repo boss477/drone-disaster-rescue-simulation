@@ -15,6 +15,25 @@
   <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
   <h1>Rescue mission</h1>
   <p class="notice">REAL MAP + LIVE PUBLIC HAZARD DATA · DRONE, ROUTE, PEOPLE & PAYLOAD ARE SIMULATED</p>
+  <section class="keybox" id="liveIncidentPanel">
+    <div class="row"><h2>Live incident reports → 3D rescue</h2><button id="refresh" class="quiet">Refresh</button></div>
+    <small>NASA EONET open events + USGS M2.5+ earthquakes from the past day. Reports can be delayed and do not cover every disaster.</small>
+    <div class="checks incident-filters"><label><input id="showFire" type="checkbox" checked> Fire</label><label><input id="showFlood" type="checkbox" checked> Flood</label><label><input id="showStorm" type="checkbox" checked> Storm</label><label><input id="showQuake" type="checkbox" checked> Earthquake</label><label><input id="showVolcano" type="checkbox" checked> Volcano</label><label><input id="showLandslide" type="checkbox" checked> Landslide</label><label><input id="showOther" type="checkbox" checked> Other</label></div>
+    <label class="scenario-label">Latest report age<select id="incidentAge"><option value="7">Past 7 days</option><option value="30" selected>Past 30 days</option><option value="all">All feed records (may be old)</option></select></label>
+    <input id="incidentSearch" placeholder="Filter incident names" aria-label="Filter incident names">
+    <div class="buttonrow"><button id="showIncidentGlobe" class="quiet">Show reports on globe</button></div>
+    <p id="feedStatus" class="muted" role="status">Connecting to public incident feeds…</p>
+    <small id="incidentCount"></small>
+    <div id="incidentContext" hidden>
+      <b id="incidentTitle"></b><p id="incidentReport" class="muted"></p>
+      <a id="incidentSource" target="_blank" rel="noopener" hidden>Original source report</a>
+      <small>Real reported location; approximate incident boundary. The 3D people, hazard effects, drop zone and deliveries below are simulated.</small>
+      <label class="scenario-label">Aid mission<select id="incidentOutcome"><option value="success">Deliver aid and return</option><option value="abort">Unsafe zone: abort and return</option></select></label>
+      <button id="rescueIncident" disabled>Send aid drone · simulated</button>
+      <p id="incidentMissionStatus" class="status" role="status">Select a report or a globe marker to open its 3D area.</p>
+    </div>
+    <div id="eventList" class="event-list"></div>
+  </section>
   <section class="keybox" id="visionPanel">
     <b>AI image review · CLIP + YOLO</b>
     <small>Analyse the same photo for disaster type and possible people. Results are AI estimates for operator review.</small>
@@ -65,12 +84,6 @@
     <div class="keyrow"><input id="odmManifest" value="/odm-data/manifest.json" aria-label="ODM manifest URL"><button id="loadOdm" class="quiet">Load ODM</button><button id="clearOdm" class="quiet" disabled>Clear</button></div>
     <div class="checks odm-checks"><label><input id="odmOrtho" type="checkbox" checked> Orthophoto</label><label><input id="odmTerrain" type="checkbox" checked> Elevation</label><label><input id="odmCloud" type="checkbox" checked> Point cloud</label><label><input id="odmMesh" type="checkbox" checked> Mesh</label></div>
     <div id="odmStatus" class="status">ODM data not loaded.</div>
-  </section>
-  <section>
-    <div class="row"><h2>Active incidents</h2><button id="refresh" class="quiet">Refresh</button></div>
-    <div class="checks"><label><input id="showFire" type="checkbox" checked> Fire</label><label><input id="showFlood" type="checkbox" checked> Flood</label><label><input id="showStorm" type="checkbox" checked> Storm</label></div>
-    <p id="feedStatus" class="muted">Connecting to NASA EONET…</p>
-    <div id="eventList" class="event-list"></div>
   </section>
   <section>
     <h2>Mission area</h2>
