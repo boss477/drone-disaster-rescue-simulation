@@ -19,6 +19,8 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 
 ## Detailed fictional rescue neighbourhood
 
+**Connected workflow:** choose a real report in the Earth dashboard → open the fictional district with source context → deliver aid or abort and return → download the mission JSON. Photo-review estimates can also be carried into the exercise. Flood/fire/storm visuals remain simulated. An optional [God's Eye View globe integration](docs/GODS_EYE_RESCUE.md) runs with `./run_gods_eye_rescue.ps1` on port 4173, with a panel that hands its map context back to the fictional district.
+
 Open [Harbour Ward](fictional_rescue.html) from the Earth dashboard, or run:
 
 ```powershell

@@ -15,7 +15,7 @@
   <div class="brand">FIELD OPS <span>EARTH SIM</span></div>
   <h1>Rescue mission</h1>
   <p class="notice">REAL MAP + LIVE PUBLIC HAZARD DATA · DRONE, ROUTE, PEOPLE & PAYLOAD ARE SIMULATED</p>
-  <section class="keybox"><h2>Detailed fictional neighbourhood</h2><p>Explore Harbour Ward: textured buildings, flooded streets and a complete simulated aid delivery.</p><a href="fictional_rescue.html" style="color:#94efd1">Open the 3D rescue district →</a></section>
+  <section class="keybox"><h2>Rescue workspace</h2><p>Explore Harbour Ward: textured buildings, flooded streets and a complete simulated aid delivery.</p><a href="fictional_rescue.html" style="color:#94efd1">Open the 3D rescue district →</a><p><a href="http://127.0.0.1:4173" target="_blank" rel="noopener" style="color:#94efd1">God’s Eye View globe ↗</a></p><small>Optional globe: start run_gods_eye_rescue.ps1 first.</small></section>
   <section class="keybox" id="liveIncidentPanel">
     <div class="row"><h2>Live incident reports → 3D rescue</h2><button id="refresh" class="quiet">Refresh</button></div>
     <small>NASA EONET open events + USGS M2.5+ earthquakes from the past day. Reports can be delayed and do not cover every disaster.</small>
@@ -31,6 +31,8 @@
       <small>Real reported location; approximate incident boundary. The 3D people, hazard effects, drop zone and deliveries below are simulated.</small>
       <label class="scenario-label">Aid mission<select id="incidentOutcome"><option value="success">Deliver aid and return</option><option value="abort">Unsafe zone: abort and return</option></select></label>
       <button id="rescueIncident" disabled>Send aid drone · simulated</button>
+      <a id="fictionalIncident" href="fictional_rescue.html" style="display:block;color:#94efd1;margin:10px 0">Train in the detailed fictional district →</a>
+      <a id="godsEyeIncident" href="http://127.0.0.1:4173" target="_blank" rel="noopener" style="color:#94efd1">Explore this report in God’s Eye View ↗</a>
       <p id="incidentMissionStatus" class="status" role="status">Select a report or a globe marker to open its 3D area.</p>
     </div>
     <div id="eventList" class="event-list"></div>
@@ -45,6 +47,7 @@
     <div id="visionStatus" class="status" role="status">Choose an image, or capture a camera frame. Models load once and are reused.</div>
     <div id="visionResults"></div>
     <button id="useVisionArea" class="quiet" disabled>Attach review to selected map area</button>
+    <button id="fictionalVision" class="quiet" disabled>Use review in fictional rescue</button>
     <small>Click the map to choose an approximate area. Photo detections have no verified GPS location. Confirm the simulated candidate before launching.</small>
   </section>
   <section class="demo-box">
@@ -139,6 +142,7 @@
 <div id="nasaCredit" hidden>Renderer: <a href="https://github.com/NASA-AMMOS/3DTilesRendererJS" target="_blank" rel="noopener">NASA-AMMOS 3DTilesRendererJS</a> · Map © OpenStreetMap contributors · online 3D: Cesium ion <span id="nasaProviderCredits"></span></div>
 <button id="restore3d" class="restore-3d">3D rescue view</button>
 <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+<script src="rescue_handoff.js"></script>
 <script src="earth_rescue_scene.js"></script>
 <script src="earth_rescue.js"></script>
 <script src="earth_rescue_vision.js"></script>

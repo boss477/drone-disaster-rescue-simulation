@@ -47,6 +47,10 @@ def main():
         page.screenshot(path='inspection_reports/unified_rescue_dashboard.png')
         page.evaluate("running = false; setLocation(25.2,55.3,'New area','operator','unknown')")
         assert page.evaluate('mission === null && document.getElementById("missionHud").hidden')
+        page.locator('#fictionalVision').click()
+        page.wait_for_url('**/fictional_rescue.html?context=*')
+        page.wait_for_function('window.FictionalRescue')
+        assert page.evaluate('fictionalMissionContext.review.people_count === 1 && fictionalMissionContext.review.geolocation === "unverified"')
         assert not errors, errors
         print('Unified upload, both result panels, review attachment, 3D restore and stale mission reset: PASS')
         browser.close()

@@ -6,6 +6,7 @@ This project is an integration layer. It does not reimplement an autopilot, grou
 
 | Upstream project | Used for | Integration in this repository |
 | --- | --- | --- |
+| [God's Eye View](https://github.com/bilawalsidhu/gods-eye-view) | Optional local globe and native live layers | `run_gods_eye_rescue.ps1`, pinned upstream checkout, Vite rescue panel and report handoff; [guide](docs/GODS_EYE_RESCUE.md) |
 | [PX4 Autopilot](https://github.com/PX4/PX4-Autopilot) | Real software-in-the-loop flight dynamics and MAVLink telemetry | `start_sitl.ps1`, `sitl_telemetry_adapter.py` |
 | [QGroundControl](https://github.com/mavlink/qgroundcontrol) | Mission planning and vehicle/telemetry inspection | UDP 14550 output from `mavlink_bridge.py` |
 | [Ultralytics](https://github.com/ultralytics/ultralytics) | Pretrained person detection on recorded footage | `rescue_laptop.py`, `evaluate_aerial_people.py` |

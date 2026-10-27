@@ -244,10 +244,35 @@ function pack(parent){
 }
 const cargo=[pack(drone),pack(drone),pack(drone)];cargo.forEach((p,i)=>p.position.set((i-1)*.76,-.65,0));
 const deliveredPacks=[pack(scene),pack(scene),pack(scene)];
+const fireEffects=new THREE.Group();scene.add(fireEffects);
+const flames=[],smoke=[];
+for(let i=0;i<8;i++){
+  const flame=new THREE.Mesh(new THREE.ConeGeometry(.9+rand(),3+rand()*3,7),mat(i%2?'#ef9a28':'#cd542b',{emissive:'#ea631b',emissiveIntensity:.6}));
+  flame.position.set(67+rand()*8,3,44+rand()*9);flames.push(flame);fireEffects.add(flame);
+  const puff=new THREE.Mesh(new THREE.IcosahedronGeometry(2.2,1),new THREE.MeshLambertMaterial({color:'#5e6260',transparent:true,opacity:.45,depthWrite:false}));
+  puff.position.set(70+i*.7,8+i*1.4,48);smoke.push(puff);fireEffects.add(puff);
+}
+const rainGeo=new THREE.BufferGeometry(),rainPositions=new Float32Array(180*6);
+for(let i=0;i<180;i++){const x=rand()*230-115,y=rand()*70,z=rand()*200-100;rainPositions.set([x,y,z,x-.3,y-1.5,z],i*6);}
+rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
+const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:'#c2e5ed',transparent:true,opacity:.4}));scene.add(rain);
+function syncHazard(){
+  const hazard=$('hazard').value;fireEffects.visible=hazard==='fire';water.visible=hazard!=='fire';rain.visible=hazard==='storm';
+  scene.fog.color.set(hazard==='storm'?'#91a9ae':'#b5ced1');scene.background.copy(scene.fog.color);
+}
+$('hazard').addEventListener('change',syncHazard);syncHazard();
 const phases=[['Loading aid packs',4],['Taking off',5],['Flying to the refuge',16],['Approaching rooftop',6],['Delivering aid',15],['Climbing clear',5],['Returning to depot',16],['Landing',6]];
 const total=phases.reduce((sum,p)=>sum+p[1],0);
 let elapsed=0,running=false,started=false,view='overview',lastTime=performance.now(),visualTime=0;
 let delivered=0,onboard=0,phaseIndex=-1;
+let missionDuration=total,abortState=null,events=[],lastPhase='',lastOnboard=0,lastDelivered=0;
+function record(type,detail){events.push({time:new Date().toISOString(),mission_seconds:Number(elapsed.toFixed(2)),type,detail});}
+$('hazard').addEventListener('change',()=>record('HAZARD_EFFECT_CHANGED',$('hazard').value));
+function abortApproach(reason){
+  if(abortState || !started || elapsed>=missionDuration)return;
+  abortState={at:elapsed,position:drone.position.clone(),loaded:onboard,reason};missionDuration=elapsed+18;
+  record('ABORT',reason);
+}
 const home=base.clone().add(new THREE.Vector3(0,1.3,0));
 const cruise=35, roofHover=target.y+7;
 const smooth=t=>t*t*(3-2*t);
@@ -259,7 +284,10 @@ function missionState(t){
   return {index,u:Math.min(1,Math.max(0,(t-offset)/phases[index][1]))};
 }
 function updateMission(){
-  const {index,u}=missionState(elapsed); phaseIndex=index;
+  let {index,u}=missionState(elapsed);
+  if(started && $('outcome').value==='abort' && index>=4 && !abortState)abortApproach('Simulated unsafe drop zone: delivery withheld');
+  if(abortState){const t=elapsed-abortState.at;index=t<5?5:t<14?6:7;u=Math.min(1,t<5?t/5:t<14?(t-5)/9:(t-14)/4);}
+  phaseIndex=index;
   const highHome=new THREE.Vector3(home.x,cruise,home.z),highTarget=new THREE.Vector3(target.x,cruise,target.z),hover=new THREE.Vector3(target.x,roofHover,target.z);
   let pos=home.clone();
   if(index===1)pos=mix(home,highHome,u);
@@ -269,35 +297,52 @@ function updateMission(){
   if(index===5)pos=mix(hover,highTarget,u);
   if(index===6)pos=mix(highTarget,highHome,u);
   if(index===7)pos=mix(highHome,home,u);
+  if(abortState){
+    const clear=abortState.position.clone();clear.y=Math.max(cruise,clear.y);
+    pos=index===5?mix(abortState.position,clear,u):index===6?mix(clear,highHome,u):mix(highHome,home,u);
+  }
   drone.position.copy(pos);
-  if(started && elapsed<total && index>0 && index<7)drone.position.y+=Math.sin(visualTime*2)*.06;
+  if(started && elapsed<missionDuration && index>0 && index<7)drone.position.y+=Math.sin(visualTime*2)*.06;
   drone.rotation.y=index>=6?-.94:2.2;
   drone.rotation.z=(index===2||index===6)?Math.sin(u*Math.PI)*.06:0;
-  const loading=index===0?Math.min(3,Math.floor(u*3.8)):3;
-  const dropTime=index===4?u*15:index>4?15:0;
+  const loading=abortState?abortState.loaded:index===0?Math.min(3,Math.floor(u*3.8)):3;
+  const dropTime=abortState?0:index===4?u*15:index>4?15:0;
   delivered=Math.min(3,Math.max(0,Math.floor((dropTime-2)/4)+1));
   if(index<4)delivered=0;
   onboard=loading-Math.min(3,Math.ceil(dropTime/4));
   if(index<4)onboard=loading;
   onboard=Math.max(0,onboard);
+  if(started && onboard!==lastOnboard){record('INVENTORY',{onboard});lastOnboard=onboard;}
+  if(started && delivered!==lastDelivered){record('SIMULATED_DELIVERY',{delivered});lastDelivered=delivered;}
   for(let i=0;i<3;i++){
     const start=i*4,fall=(dropTime-start)/2;
     cargo[i].visible=i<loading && (index<4 || dropTime<=start);
-    const p=deliveredPacks[i];p.visible=index>=4&&dropTime>start;
+    const p=deliveredPacks[i];p.visible=!abortState&&index>=4&&dropTime>start;
     p.position.set(target.x+(i-1)*1.3,THREE.MathUtils.lerp(roofHover-1,roofY+.35,smooth(Math.min(1,Math.max(0,fall)))),target.z);
   }
-  $('phase').textContent=elapsed>=total?'Mission complete':started?phases[index][0]:'Ready at the depot';
-  $('brief').textContent=elapsed>=total?'All three aid packs delivered. Drone safely back at the depot.':index===4?'Lowering aid packs one at a time to three simulated recipients.':'Deliver three aid packs to the marked rooftop, then return home.';
+  const finished=elapsed>=missionDuration;
+  $('phase').textContent=finished?(abortState?'Aborted · safely returned':'Mission complete'):abortState?'Aborting · '+phases[index][0].toLowerCase():started?phases[index][0]:'Ready at the depot';
+  $('brief').textContent=finished?(abortState?'Delivery withheld. Drone returned with its remaining aid packs.':'All three aid packs delivered. Drone safely back at the depot.'):abortState?abortState.reason:index===4?'Lowering aid packs one at a time to three simulated recipients.':'Deliver three aid packs to the marked rooftop, then return home.';
   $('onboard').textContent=onboard;$('delivered').textContent=delivered;$('helped').textContent=`${delivered} / 3`;
   $('altitude').textContent=`${Math.max(0,pos.y-home.y).toFixed(0)} m above depot`;
-  const progress=Math.round(elapsed/total*100);$('progress').textContent=`${progress}% complete`;$('bar').value=progress;
-  $('pause').disabled=!started||elapsed>=total;$('start').disabled=started&&elapsed<total;
-  if(elapsed>=total){running=false;$('start').textContent='Run again';$('pause').textContent='Pause';}
+  const progress=Math.round(elapsed/missionDuration*100);$('progress').textContent=`${progress}% complete`;$('bar').value=progress;
+  $('pause').disabled=!started||finished;$('start').disabled=started&&!finished;
+  $('abort').disabled=!started||!!abortState||index>=4||finished;
+  $('outcome').disabled=started&&!finished;
+  if(started && $('phase').textContent!==lastPhase){lastPhase=$('phase').textContent;record('PHASE',lastPhase);}
+  if(finished){running=false;$('start').textContent='Run again';$('pause').textContent='Pause';}
 }
-function reset(){elapsed=0;running=false;started=false;$('start').textContent='Start mission';$('pause').textContent='Pause';updateMission();}
-$('start').addEventListener('click',()=>{if(elapsed>=total)reset();started=true;running=true;updateMission();});
+function reset(){elapsed=0;running=false;started=false;abortState=null;missionDuration=total;events=[];lastPhase='';lastOnboard=0;lastDelivered=0;$('start').textContent='Start mission';$('pause').textContent='Pause';updateMission();}
+$('start').addEventListener('click',()=>{if(elapsed>=missionDuration)reset();started=true;running=true;record('START',{scenario:$('outcome').value,hazard:$('hazard').value});updateMission();});
 $('pause').addEventListener('click',()=>{running=!running;$('pause').textContent=running?'Pause':'Resume';});
 $('reset').addEventListener('click',reset);
+$('abort').addEventListener('click',()=>abortApproach('Operator aborted the simulated approach'));
+function missionLog(){return {schema:1,environment:'fictional-harbour-ward',simulation_only:true,hardware_commands:false,context:window.fictionalMissionContext || null,
+  outcome:elapsed>=missionDuration?(abortState?'aborted':'delivered'):started?'in_progress':'not_started',delivered,onboard,events:[...events]};}
+$('download').addEventListener('click',()=>{
+  const url=URL.createObjectURL(new Blob([JSON.stringify(missionLog(),null,2)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download='harbour-ward-mission.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
 function setView(next){
   view=next;
   const presets={overview:[[160,116,172],[0,10,8]],street:[[28,9,14],[-32,12,-46]],roof:[[85,38,97],[46,roofY+2,53]],follow:[[home.x+20,home.y+13,home.z+23],[home.x,home.y,home.z]]};
@@ -308,14 +353,17 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 setView('overview');reset();
 // Read-only browser inspection hook: no flight, serial or hardware API calls.
-window.FictionalRescue={getState:()=>({elapsed,total,running,started,phase:elapsed>=total?'Mission complete':phases[phaseIndex]?.[0],delivered,onboard,view,position:drone.position.toArray(),calls:renderer.info.render.calls}),setView};
+window.FictionalRescue={getState:()=>({elapsed,total:missionDuration,running,started,phase:$('phase').textContent,delivered,onboard,view,position:drone.position.toArray(),calls:renderer.info.render.calls}),getLog:missionLog,setView};
 let frames=0,frameWindow=performance.now();
 function frame(now){
   requestAnimationFrame(frame);const dt=Math.min(.1,(now-lastTime)/1000);lastTime=now;
-  if(running){elapsed=Math.min(total,elapsed+dt*Number($('speed').value));visualTime+=dt;}
+  if(running){elapsed=Math.min(missionDuration,elapsed+dt*Number($('speed').value));visualTime+=dt;}
   if(!started)visualTime+=dt;
   updateMission();
-  if(running&&phaseIndex>0&&elapsed<total)rotors.forEach((r,i)=>r.rotation.y+=(i%2?1:-1)*dt*65);
+  if(running&&phaseIndex>0&&elapsed<missionDuration)rotors.forEach((r,i)=>r.rotation.y+=(i%2?1:-1)*dt*65);
+  flames.forEach((f,i)=>{f.scale.y=.85+Math.sin(visualTime*5+i)*.18;});
+  smoke.forEach((p,i)=>{p.position.y=8+((visualTime*.8+i*1.6)%14);p.scale.setScalar(1+(p.position.y-8)*.06);});
+  rain.position.y=-(visualTime*12)%12;
   for(let i=0;i<people.length;i++)people[i].rotation.z=Math.sin(visualTime*1.5+i)*.025;
   const attr=waterGeometry.attributes.position;
   for(let i=0;i<attr.count;i++)attr.array[i*3+1]=waterBase[i*3+1]+Math.sin(waterBase[i*3]*.25+visualTime)*.045+Math.cos(waterBase[i*3+2]*.35+visualTime*.7)*.025;

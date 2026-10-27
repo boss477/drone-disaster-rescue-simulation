@@ -20,6 +20,7 @@
     lastResult = null;
     $('visionResults').replaceChildren();
     $('useVisionArea').disabled = true;
+    $('fictionalVision').disabled = true;
     $('analyseImage').disabled = false;
     $('visionStatus').textContent = 'Ready: analyse this image with both models.';
   }
@@ -54,6 +55,7 @@
     for (const [model, error] of Object.entries(result.errors)) line(`${model} unavailable: ${error}`);
     $('visionStatus').textContent = `AI review completed in ${result.elapsed_seconds}s · ${result.timestamp}. Scores are model estimates, not calibrated probabilities.`;
     $('useVisionArea').disabled = !result.disaster && !('people_count' in result);
+    $('fictionalVision').disabled = $('useVisionArea').disabled;
   }
 
   $('visionFile').onchange = async event => {
@@ -70,6 +72,7 @@
     $('visionFile').disabled = true;
     $('cameraCapture').disabled = true;
     $('useVisionArea').disabled = true;
+    $('fictionalVision').disabled = true;
     try {
       // Clear old annotations before repeating a review.
       const bitmap = await createImageBitmap(imageBlob);
@@ -146,5 +149,10 @@
   $('restore3d').onclick = () => {
     if (mission) missionOverview();
     else runRescueDemo();
+  };
+  $('fictionalVision').onclick=()=>{
+    if(!lastResult)return;
+    if(!selected){$('visionStatus').textContent='Select an approximate map area first. Image detections have no verified geolocation.';return;}
+    location.href=RescueHandoff.sceneURL({...selected,review:lastResult});
   };
 })();

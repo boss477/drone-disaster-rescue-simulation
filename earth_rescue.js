@@ -540,6 +540,8 @@ function selectIncident(id) {
   const source=(event.sources || []).find(item=>{try{return ['http:','https:'].includes(new URL(item.url).protocol);}catch{return false;}});
   $('incidentSource').hidden=!source;
   if (source) $('incidentSource').href=source.url;
+  $('fictionalIncident').onclick=event=>{event.preventDefault();location.href=RescueHandoff.sceneURL(selected);};
+  $('godsEyeIncident').href=RescueHandoff.godsEyeURL(selected);
   $('incidentMissionStatus').textContent='Opening the reported area in 3D. Send the aid drone to watch a simulated loading, delivery and return at this location.';
   $('incidentMissionStatus').dataset.loading='true';
   $('candidate').querySelector('b').textContent='SIMULATED recipients near the reported area';
@@ -607,6 +609,8 @@ async function loadWeather(lat, lon) {
     if (!response.ok) throw Error();
     const data = await response.json();
     const current = data.current;
+    if(selected && selected.lat===lat && selected.lon===lon)selected.weather={temperature:current.temperature_2m,wind:current.wind_speed_10m,
+      rain:Number(current.rain || 0)+Number(current.showers || 0),time:current.time+' '+(data.timezone_abbreviation || ''),retrieved_at:new Date().toISOString()};
     $('weather').textContent = `${current.temperature_2m}°C · rain ${Number(current.rain || 0) + Number(current.showers || 0)} mm · wind ${current.wind_speed_10m} km/h · observed ${current.time} ${data.timezone_abbreviation || ''}`;
   } catch {
     $('weather').textContent = 'Current weather unavailable.';
