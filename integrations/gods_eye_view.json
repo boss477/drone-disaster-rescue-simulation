@@ -2,5 +2,6 @@
   "repository": "https://github.com/bilawalsidhu/gods-eye-view.git",
   "commit": "15de9d738c4a85be1a96726c6114181caef87eeb",
   "license": "MIT (code only; third-party data and assets have separate terms)",
-  "default_port": 4173
+  "default_port": 4173,
+  "local_patches": ["gods_eye_view_windows.patch"]
 }

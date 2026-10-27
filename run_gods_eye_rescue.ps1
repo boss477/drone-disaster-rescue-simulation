@@ -19,6 +19,10 @@ if(-not (Test-Path -LiteralPath $InstallDir)){
 }
 $actual=& git -C $InstallDir rev-parse HEAD
 if($LASTEXITCODE -ne 0 -or $actual -ne $metadata.commit){throw "Expected upstream commit $($metadata.commit). Use a separate checkout at that commit; existing files were not changed."}
+$windowsPatch=Join-Path $PSScriptRoot 'integrations\gods_eye_view_windows.patch'
+# One portable test-only fix: Sharp needs fileURLToPath, not URL.pathname on Windows.
+& node "$PSScriptRoot\scripts\apply_gods_eye_patch.cjs" $InstallDir $windowsPatch
+if($LASTEXITCODE -ne 0){throw 'The upstream Windows test compatibility patch conflicts with local edits.'}
 if(-not (Test-Path -LiteralPath (Join-Path $InstallDir 'node_modules\vite'))){
   Push-Location $InstallDir
   $previousDownload=$env:PUPPETEER_SKIP_DOWNLOAD
@@ -29,6 +33,6 @@ if($InstallOnly){Write-Host "Gods Eye View ready at $InstallDir";return}
 $env:GODS_EYE_VIEW_ROOT=$InstallDir
 $env:GODS_EYE_VIEW_PORT="$Port"
 $env:DRONE_RESCUE_ORIGIN="http://127.0.0.1:$RescuePort"
-Write-Host "Gods Eye View: http://127.0.0.1:$Port - rescue dashboard must be running on $RescuePort."
+Write-Host "Gods Eye View: http://127.0.0.1:$Port - starting or reusing the rescue backend on $RescuePort."
 & node "$PSScriptRoot\scripts\start_gods_eye_rescue.mjs"
 if($LASTEXITCODE -ne 0){throw 'Gods Eye View stopped with an error.'}
