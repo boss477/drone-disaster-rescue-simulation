@@ -10,7 +10,8 @@
     "test": "py -m unittest discover -s tests",
     "build:world": "node scripts/build_nasa_world.cjs",
     "build:fictional": "node scripts/build_fictional_rescue.cjs",
-    "build:drone": "node scripts/build_city_drone.mjs"
+    "build:drone": "node scripts/build_city_drone.mjs",
+    "test:city-route": "node --test tests/city_route_math.test.mjs"
   },
   "repository": {
     "type": "git",

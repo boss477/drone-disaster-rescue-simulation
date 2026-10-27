@@ -6,6 +6,7 @@ export function installNewYork({application,el}){
   const views={downtown:{lon:-74.009,lat:40.708,range:2600},midtown:{lon:-73.986,lat:40.752,range:2700},city:{lon:-73.96,lat:40.735,range:32000}};
   function fly(){
     if(!viewer)return;const p=views[el('nycView').value];
+    dispatchEvent(new Event('rescue:map-navigation'));
     const height=viewer.scene.globe.getHeight(Cesium.Cartographic.fromDegrees(p.lon,p.lat))||0;
     viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(p.lon,p.lat,height),200),
       {offset:new Cesium.HeadingPitchRange(.25,-.55,p.range),duration:1.7});
@@ -65,7 +66,7 @@ export function installNewYork({application,el}){
   addEventListener('pagehide',()=>{if(tileset && viewer && !viewer.isDestroyed())viewer.scene.primitives.remove(tileset);},{once:true});
   // Read-only acceptance hook exposes counts and source, never the access token.
   const api={getState:()=>({source,assetId,loading,tileLoads,featuresLoaded,visible:!!tileset?.show,view:el('nycView').value}),
-    ensureBuildings:async()=>{if(!tileset?.show)await load(source || 'osm',true);return api.getState();}};
+    ensureBuildings:async({global=false}={})=>{if(global&&source==='nyc')await load('osm',true);else if(!tileset?.show)await load(source || 'osm',true);return api.getState();}};
   window.RescueNewYork=api;
   if(new URLSearchParams(location.search).get('nyc')==='1')load('nyc');
   return api;
