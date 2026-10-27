@@ -1,6 +1,7 @@
 import {application} from '/src/main.js';
 import * as Cesium from 'cesium';
 import {installNewYork} from '/__rescue/nyc.js';
+import {installCityFlight} from '/__rescue/city-flight.js';
 const rescueOrigin=__RESCUE_ORIGIN__,backend='/__rescue/backend';
 let report=RescueHandoff.fromURL(),viewer=null,markers=null,visible=[],review=null,imageBlob=null,stream=null;
 let busy=false,refreshBusy=false,selectionVersion=0,frame=null,previousRenderLoop=true;
@@ -16,7 +17,8 @@ shadow.innerHTML=`<style>
  [hidden]{display:none!important}canvas,video{width:100%;margin-top:10px;border-radius:6px}#weather{border-top:1px solid #ffffff22;padding-top:9px}#result{font-size:11px;line-height:1.5;white-space:pre-line}#train{display:inline-block;margin:12px 0;font-size:10px}#context{font-weight:600}button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #ffdb8a;outline-offset:2px}
  </style><details open><summary>DRONE RESCUE · OPERATIONS</summary><p id="context"></p><small>Public reports provide context. Harbour Ward, its people, hazards and deliveries are fictional.</small>
  <button id="nyc" class="secondary">New York · 3D buildings →</button><div id="nycControls" hidden><label>Building dataset<select id="nycSource"><option value="nyc">Curated NYC · try first</option><option value="osm">OSM building shapes</option></select></label><label>Curated asset ID from your ion account<input id="nycAsset" type="number" min="1" step="1" value="75343"></label><label>City view<select id="nycView"><option value="downtown">Lower Manhattan</option><option value="midtown">Midtown Manhattan</option><option value="city">Citywide overview</option></select></label><button id="nycHide" class="secondary">Hide buildings</button><p id="nycStatus" role="status"></p><small id="nycNotice"></small><p><a href="https://ion.cesium.com/assetdepot/75343" target="_blank" rel="noopener">Enable curated NYC in Cesium ion ↗</a></p><small>Real building geometry; geometry detail and age vary. These layers do not contain photorealistic facade textures.</small></div>
- <button id="launch">Enter 3D rescue mission →</button><a id="train">Open district as a separate page ↗</a><small style="display:block">Collapse this panel to reach God’s Eye View’s native controls underneath.</small>
+ <button id="cityFlight">Fly drone through this area →</button><div id="cityFlightControls" hidden><p id="cityFlightStatus" role="status">Simulated city flight.</p><div class="row"><button id="cityPause" disabled>Pause</button><button id="cityReset" class="secondary">Reset</button><button id="cityFollow" class="secondary">Follow drone</button></div><label>Flight speed<select id="citySpeed"><option value="4">4 m/s · slow</option><option value="8" selected>8 m/s · normal</option><option value="16">16 m/s · fast</option></select></label><small>SIMULATED drone · sampled map/model heights · no hardware commands.</small></div>
+ <button id="launch">Enter fictional 3D rescue mission →</button><a id="train">Open district as a separate page ↗</a><small style="display:block">Collapse this panel to reach God’s Eye View’s native controls underneath.</small>
  <div class="tabs" role="tablist" aria-label="Rescue tools"><button role="tab" id="reportsTab" aria-selected="true">Reports</button><button role="tab" id="aiTab" aria-selected="false">Image AI</button><button role="tab" id="contextTab" aria-selected="false">Context</button></div>
  <section id="reportsPane"><div class="row"><label>Report age<select id="age"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="all">All dates</option></select></label><label>Category<select id="kind"><option value="all">All hazards</option><option value="fire">Fire</option><option value="flood">Flood</option><option value="storm">Storm</option><option value="earthquake">Earthquake</option><option value="volcano">Volcano</option><option value="landslide">Landslide</option><option value="other">Other</option></select></label></div><input id="search" placeholder="Filter report names" aria-label="Filter rescue reports"><div class="row"><button id="refresh" class="secondary">Refresh feeds</button><button id="global" class="secondary">Whole Earth</button></div><p id="feedStatus" role="status">Loading public reports…</p><small id="count"></small><div id="events"></div><small>NASA EONET open records + USGS M2.5+ past-day earthquakes. Reports can be delayed; no marker does not establish safety.</small></section>
  <section id="aiPane" hidden><p>Review one photo with pretrained CLIP and YOLO. Results are estimates; image geolocation is unverified.</p><input id="image" type="file" accept="image/*" aria-label="Choose rescue image"><div class="row"><button id="analyse" disabled>Analyse image</button><button id="camera" class="secondary">Camera</button><button id="stopCamera" class="secondary" hidden>Stop</button></div><video id="cameraView" autoplay muted playsinline hidden></video><canvas id="preview" hidden></canvas><p id="visionStatus" role="status">Choose an image or capture a camera frame.</p><div id="result"></div><button id="useReview" disabled>Attach AI review to exercise</button><small>First use may download weights; subsequent reviews reuse the cache. Scene recipients remain fictional.</small></section>
@@ -24,6 +26,7 @@ shadow.innerHTML=`<style>
 document.body.append(root);
 const el=id=>shadow.getElementById(id);
 const nyc=installNewYork({application,el});
+const cityFlight=installCityFlight({application,el,nyc});
 el('reports').href=rescueOrigin+'/earth_rescue.html?incidents=1';
 const colors={fire:'#ff9b55',flood:'#55c7f0',storm:'#c49aff',earthquake:'#ffd67b',volcano:'#f76a65',landslide:'#c4ae89',other:'#a0d1c5'};
 function tab(name){for(const t of ['reports','ai','context']){el(t+'Pane').hidden=t!==name;el(t+'Tab').setAttribute('aria-selected',String(t===name));}}
@@ -153,6 +156,11 @@ application.start().then(()=>{
   if(report)selectReport(report,false);addEventListener('pagehide',()=>{handler.destroy();clearInterval(timer);},{once:true});
 }).catch(error=>{el('feedStatus').textContent='Globe startup failed: '+error.message;});
 window.RescueOperations={getState:()=>({report,visible:visible.map(r=>({id:r.id,kind:r.kind})),records:allReports().length,refreshBusy,training:!!frame}),
-  markerScreens:()=>!viewer?[]:visible.slice(0,600).map(r=>{const c=Cesium.Cartographic.fromDegrees(r.location.lon,r.location.lat),h=viewer.scene.globe.getHeight(c)||0;
-    const p=Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene,Cesium.Cartesian3.fromDegrees(r.location.lon,r.location.lat,h));return {id:r.id,x:p?.x,y:p?.y};}),
+  markerScreens:()=>!viewer?[]:visible.slice(0,600).map(r=>{
+    // Read the pinned SDK's actual rendered bounds for clamped marker picking;
+    // globe.getHeight may differ while a different terrain LOD is rendering.
+    const entity=markers?.entities.getById('rescue-'+r.id),bounds=new Cesium.BoundingSphere();
+    const ready=entity&&viewer.dataSourceDisplay.getBoundingSphere(entity,true,bounds)===0;
+    const p=ready?Cesium.SceneTransforms.worldToWindowCoordinates(viewer.scene,bounds.center):null;
+    return {id:r.id,x:p?.x,y:p?.y};}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),
   selectReport:id=>{const r=allReports().find(r=>r.id===id);if(r)selectReport(r);},closeTraining};

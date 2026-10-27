@@ -10,7 +10,7 @@ export function installNewYork({application,el}){
     viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(Cesium.Cartesian3.fromDegrees(p.lon,p.lat,height),200),
       {offset:new Cesium.HeadingPitchRange(.25,-.55,p.range),duration:1.7});
   }
-  async function load(requested='nyc'){
+  async function load(requested='nyc',preserveView=false){
     if(loading)return;loading=true;el('nyc').disabled=true;el('nycSource').disabled=true;el('nycControls').hidden=false;
     el('nycStatus').textContent='Loading New York building geometry…';el('nycNotice').textContent='';
     try{
@@ -21,7 +21,7 @@ export function installNewYork({application,el}){
       if(!config.access_token){el('nycStatus').textContent='Configure your Cesium ion token, then retry.';return;}
       const requestedId=requested==='nyc'?Number(el('nycAsset').value):config.fallback_asset_id;
       if(!Number.isSafeInteger(requestedId)||requestedId<1){el('nycStatus').textContent='Enter the positive numeric asset ID shown in your Cesium ion account.';return;}
-      if(tileset && source===requested && assetId===requestedId){tileset.show=true;el('nycHide').textContent='Hide buildings';el('nycStatus').textContent=(source==='nyc'?'Curated NYC':'OSM building geometry · New York')+` · ${tileLoads} content tiles loaded`;fly();return;}
+      if(tileset && source===requested && assetId===requestedId){tileset.show=true;el('nycHide').textContent='Hide buildings';el('nycStatus').textContent=(source==='nyc'?'Curated NYC':'OSM building geometry · New York')+` · ${tileLoads} content tiles loaded`;if(!preserveView)fly();return;}
       let next,actual=requested;
       const options={maximumScreenSpaceError:14,cacheBytes:128*1024*1024,maximumCacheOverflowBytes:64*1024*1024};
       const fetchTiles=async id=>Cesium.Cesium3DTileset.fromUrl(await Cesium.IonResource.fromAssetId(id,{accessToken:config.access_token}),options);
@@ -43,7 +43,7 @@ export function installNewYork({application,el}){
         viewer.scene.requestRender();
       });
       tileset.tileFailed.addEventListener(()=>{el('nycStatus').textContent=label+' · a tile failed; check the connection or token permissions.';});
-      fly();viewer.scene.requestRender();
+      if(!preserveView)fly();viewer.scene.requestRender();
     }catch{el('nycStatus').textContent='Cannot load building tiles. Check your Cesium token, asset access and connection, then retry.';}
     finally{loading=false;el('nyc').disabled=false;el('nycSource').disabled=false;}
   }
@@ -64,7 +64,8 @@ export function installNewYork({application,el}){
   });
   addEventListener('pagehide',()=>{if(tileset && viewer && !viewer.isDestroyed())viewer.scene.primitives.remove(tileset);},{once:true});
   // Read-only acceptance hook exposes counts and source, never the access token.
-  const api={getState:()=>({source,assetId,loading,tileLoads,featuresLoaded,visible:!!tileset?.show,view:el('nycView').value})};
+  const api={getState:()=>({source,assetId,loading,tileLoads,featuresLoaded,visible:!!tileset?.show,view:el('nycView').value}),
+    ensureBuildings:async()=>{if(!tileset?.show)await load(source || 'osm',true);return api.getState();}};
   window.RescueNewYork=api;
   if(new URLSearchParams(location.search).get('nyc')==='1')load('nyc');
   return api;

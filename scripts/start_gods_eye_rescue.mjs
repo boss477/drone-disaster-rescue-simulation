@@ -43,8 +43,8 @@ const nycConfig=JSON.parse(readFileSync(resolve(repo,'integrations/new_york_buil
 const existingPublicToken=readFileSync(resolve(repo,'earth_rescue.js'),'utf8').match(/const DEFAULT_CESIUM_TOKEN = '([^']+)'/)?.[1] || '';
 const nycToken=process.env.CESIUM_ION_TOKEN || existingPublicToken;
 const plugin={name:'drone-rescue-handoff',
-  resolveId(id){if(id==='/__rescue/panel.js')return '\0drone-rescue-panel';if(id==='/__rescue/nyc.js')return '\0drone-rescue-nyc';},
-  load(id){if(id==='\0drone-rescue-panel')return panel;if(id==='\0drone-rescue-nyc')return readFileSync(resolve(repo,'scripts/gods_eye_nyc.js'),'utf8');},
+  resolveId(id){if(id==='/__rescue/panel.js')return '\0drone-rescue-panel';if(id==='/__rescue/nyc.js')return '\0drone-rescue-nyc';if(id==='/__rescue/city-flight.js')return '\0drone-rescue-city-flight';},
+  load(id){if(id==='\0drone-rescue-panel')return panel;if(id==='\0drone-rescue-nyc')return readFileSync(resolve(repo,'scripts/gods_eye_nyc.js'),'utf8');if(id==='\0drone-rescue-city-flight')return readFileSync(resolve(repo,'scripts/gods_eye_city_flight.js'),'utf8');},
   configureServer(server){server.middlewares.use((request,response,next)=>{
     if(request.url?.split('?')[0]!=='/__rescue/nyc-config')return next();
     response.setHeader('Content-Type','application/json');response.setHeader('Cache-Control','no-store');

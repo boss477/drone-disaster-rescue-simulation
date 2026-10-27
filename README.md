@@ -23,6 +23,8 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 
 **New York 3D:** open `http://127.0.0.1:4173/?nyc=1` or press **New York · 3D buildings**. Lower Manhattan, Midtown and citywide views stream real building geometry. The curated NYC asset requires access in your Cesium ion account; if unavailable, the app explicitly shows the working OSM building layer instead. The [guide](docs/GODS_EYE_RESCUE.md#new-york-3d-buildings) explains activation and the asset-ID field. Building shapes are untextured and do not represent live damage.
 
+**Fly inside the real city view:** frame a neighbourhood, then press **Fly drone through this area**. An original animated quadcopter flies a simulated rooftop loop in the same Cesium building scene, with follow/free camera, pause/resume, reset and 4/8/16 m/s speed. It loads the local terrain and imagery, samples model heights and sets an elevated route. The scripted route is not validated flight planning or autopilot/SITL control; no hardware or payload commands are sent. The Queens example opens at `http://127.0.0.1:4173/?drone=1&flightLat=40.6937&flightLon=-73.7814`. Rebuild the bundled model with `npm run build:drone` after editing `scripts/build_city_drone.mjs`.
+
 Open [Harbour Ward](fictional_rescue.html) from the Earth dashboard, or run:
 
 ```powershell
