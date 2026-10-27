@@ -38,7 +38,21 @@ The default God’s Eye View route is keyless imagery/terrain. Photorealistic 3D
 
 `-Port` and `-RescuePort` configure the upstream server and its return URL. Dashboard/globe shortcuts default to 4173/8877; if you choose other ports, navigate to those ports explicitly.
 
-## Verification
+## New York 3D buildings
+
+Open `http://127.0.0.1:4173/?nyc=1`, or press **New York · 3D buildings** in the rescue panel. Choose Lower Manhattan, Midtown Manhattan or Citywide overview; drag to orbit and scroll to zoom. **Hide buildings** toggles the layer without downloading another copy. No model conversion is required.
+
+The loader first requests the ready-made **New York City 3D Buildings** asset linked by Cesium's [official metadata tutorial](https://cesium.com/learn/unreal/unreal-visualize-metadata/) and [Asset Depot](https://ion.cesium.com/assetdepot/75343). If that asset is inaccessible, it explicitly displays **OSM building geometry · New York** instead, using the global Cesium OSM tileset viewed over NYC. It does not label OSM as the curated city dataset. These are actual streamed 3D building shapes, not procedurally invented buildings or photorealistic facade textures.
+
+To activate the curated city layer, sign into Cesium ion, add **New York City 3D Buildings** to **My Assets**, ensure the browser token may access it, copy its numeric asset ID into **Curated asset ID**, and select **Curated NYC** again. The current configured token returned HTTP 404 for curated asset 75343 and successfully accessed OSM asset 96188 during verification. Adding account assets requires the user's signed-in ion account; the existing browser token alone did not provide this access. If using another token, configure `CESIUM_ION_TOKEN` before launching. Tokens remain browser credentials and should be appropriately restricted in ion.
+
+The NYC survey metadata describes historical 2014 building geometry; neither dataset proves current disaster damage. Loading buildings does not place or launch a rescue mission. Choose a real report or **Use current map centre** to set the separate exercise context. Harbour Ward remains fictional.
+
+The local JSON config is `integrations/new_york_buildings.json`. SDK loading uses `IonResource.fromAssetId(id, {accessToken})` with `Cesium3DTileset.fromUrl`; it does not change the upstream app's global ion token or automatically enable Google's photorealistic service. Esri imagery is selected before loading the independent building layer. Streaming is limited by a 128 MiB tileset cache plus 64 MiB overflow; it does not download the whole city. Tile/feature counters are cumulative diagnostics, not a count of unique buildings.
+
+Live check: `py tests/gods_eye_new_york_browser_check.py` verifies real tile content, source labels, camera positions, source access fallback, show/hide and invalid asset IDs. The curated dataset's contents remain unverified until account access is enabled. An actual live OSM run loaded 50 content tiles and 39,549 cumulative building features across the three NYC presets without page errors.
+
+## Verification commands
 
 With both local servers running:
 

@@ -22,8 +22,8 @@ def main():
             page.add_init_script('''
                 window.__frames=[];
                 window.requestAnimationFrame=cb=>{window.__frames.push(cb);return window.__frames.length};
-                window.__time=performance.now();
-                window.__step=n=>{for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
+                window.__time=null;
+                window.__step=n=>{if(window.__time===null)window.__time=performance.now();for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
             ''')
             page.goto(url, wait_until='networkidle')
             page.wait_for_function('window.FictionalRescue !== undefined')

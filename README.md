@@ -21,6 +21,8 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 
 **Main globe workflow:** run `./run_gods_eye_rescue.ps1` and open `http://127.0.0.1:4173`. The full upstream God's Eye View app runs with a rescue operations panel: select a NASA/USGS report or globe marker, review a photo using CLIP + YOLO, attach its estimates, then **Enter 3D rescue mission**. Harbour Ward opens inside the same app; return to the preserved globe after delivery or abort. The launcher starts or reuses the local backend automatically. Native upstream data layers, weather, camera and display controls remain available. See the [God's Eye View guide](docs/GODS_EYE_RESCUE.md) for installation, provider limits and verification.
 
+**New York 3D:** open `http://127.0.0.1:4173/?nyc=1` or press **New York · 3D buildings**. Lower Manhattan, Midtown and citywide views stream real building geometry. The curated NYC asset requires access in your Cesium ion account; if unavailable, the app explicitly shows the working OSM building layer instead. The [guide](docs/GODS_EYE_RESCUE.md#new-york-3d-buildings) explains activation and the asset-ID field. Building shapes are untextured and do not represent live damage.
+
 Open [Harbour Ward](fictional_rescue.html) from the Earth dashboard, or run:
 
 ```powershell

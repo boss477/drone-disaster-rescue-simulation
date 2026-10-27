@@ -1,0 +1,8 @@
+{
+  "curated_asset_id": 75343,
+  "fallback_asset_id": 96188,
+  "depot_url": "https://ion.cesium.com/assetdepot/75343",
+  "curated_name": "New York City 3D Buildings",
+  "fallback_name": "Cesium OSM Buildings",
+  "metadata_url": "https://github.com/CityOfNewYork/nyc-geo-metadata/blob/main/Metadata/Metadata_3DBuildingModel.md"
+}

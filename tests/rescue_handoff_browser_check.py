@@ -18,7 +18,7 @@ def main():
             errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
             page.add_init_script('''if(location.pathname.endsWith('fictional_rescue.html')){
               window.__frames=[];window.requestAnimationFrame=cb=>{window.__frames.push(cb);return 1};
-              window.__time=performance.now();window.__step=n=>{for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
+              window.__time=null;window.__step=n=>{if(window.__time===null)window.__time=performance.now();for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
             }''')
             root='http://127.0.0.1:8877/'
             fixture={'events':[{'id':incident['id'],'title':incident['title'],'categories':[{'title':'Wildfires'}],

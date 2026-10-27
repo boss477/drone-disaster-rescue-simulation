@@ -25,15 +25,18 @@ def main():
         try:
             page=browser.new_page(viewport={'width':1600,'height':1050})
             errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+            # This is a workflow test. External font CSS must not hold up module
+            # startup when Google's font endpoint is slow/unreachable.
+            page.route('https://fonts.googleapis.com/**',lambda r:r.fulfill(content_type='text/css',body=''))
             page.add_init_script('''if(location.pathname.endsWith('fictional_rescue.html')){
                 window.__frames=[];window.requestAnimationFrame=cb=>{window.__frames.push(cb);return 1};
-                window.__time=performance.now();window.__step=n=>{for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
+                window.__time=null;window.__step=n=>{if(window.__time===null)window.__time=performance.now();for(let i=0;i<n;i++){window.__time+=100;window.__frames.shift()(window.__time)}};
             }''')
             page.route('**/eonet.gsfc.nasa.gov/api/v3/events*',lambda r:r.fulfill(json=fixtures))
             page.route('**/earthquake.usgs.gov/**/2.5_day.geojson',lambda r:r.fulfill(json=usgs))
             page.route('**/api.open-meteo.com/**',lambda r:r.fulfill(json={'current':{'temperature_2m':27,'wind_speed_10m':11,'rain':1,'time':now.isoformat()},'timezone_abbreviation':'UTC'}))
             page.route('**/__rescue/backend/api/vision',lambda r:r.fulfill(status=202 if r.request.method=='POST' else 200,json={'accepted':True} if r.request.method=='POST' else model))
-            page.goto('http://127.0.0.1:4173',wait_until='domcontentloaded')
+            page.goto('http://127.0.0.1:4173',wait_until='domcontentloaded',timeout=90000)
             page.wait_for_function('window.RescueOperations?.getState().records===4 && window.__godsEyeView?.viewer',timeout=45000)
             page.wait_for_function('getComputedStyle(document.getElementById("loading-screen")).visibility === "hidden"',timeout=45000)
             # Dismiss upstream's first-run chooser without changing keys or provider settings.
@@ -50,6 +53,9 @@ def main():
             # Exercise the actual Cesium marker picking path, not just the list.
             page.evaluate('RescueOperations.selectReport("fire")')
             page.wait_for_timeout(1800)
+            # Terrain-clamped points may become pickable after the camera flight
+            # has ended; wait for the real pick target, rather than a fixed delay.
+            page.wait_for_function('''()=>{const p=RescueOperations.markerScreens().find(p=>p.id==='flood');return p && __godsEyeView.viewer.scene.drillPick(p).some(x=>x.id?.rescueReportId==='flood')}''',timeout=15000,polling=100)
             point=page.evaluate('RescueOperations.markerScreens().find(p=>p.id==="flood")')
             assert 0<point['x']<1600 and 0<point['y']<1050,point
             assert page.evaluate('(p)=>__godsEyeView.viewer.scene.drillPick(p).some(x=>x.id?.rescueReportId==="flood")',point)

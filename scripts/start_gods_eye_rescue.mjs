@@ -39,9 +39,17 @@ const {createServer}=await import(pathToFileURL(resolve(upstream,'node_modules/v
 const {default:upstreamConfig}=await import(pathToFileURL(resolve(upstream,'vite.config.js')));
 const config=typeof upstreamConfig==='function'?await upstreamConfig({command:'serve',mode:'development'}):upstreamConfig;
 const panel=readFileSync(resolve(repo,'rescue_handoff.js'),'utf8')+'\n'+readFileSync(resolve(repo,'scripts/gods_eye_rescue_panel.js'),'utf8').replace('__RESCUE_ORIGIN__',JSON.stringify(origin.origin));
+const nycConfig=JSON.parse(readFileSync(resolve(repo,'integrations/new_york_buildings.json'),'utf8'));
+const existingPublicToken=readFileSync(resolve(repo,'earth_rescue.js'),'utf8').match(/const DEFAULT_CESIUM_TOKEN = '([^']+)'/)?.[1] || '';
+const nycToken=process.env.CESIUM_ION_TOKEN || existingPublicToken;
 const plugin={name:'drone-rescue-handoff',
-  resolveId(id){if(id==='/__rescue/panel.js')return '\0drone-rescue-panel';},
-  load(id){if(id==='\0drone-rescue-panel')return panel;},
+  resolveId(id){if(id==='/__rescue/panel.js')return '\0drone-rescue-panel';if(id==='/__rescue/nyc.js')return '\0drone-rescue-nyc';},
+  load(id){if(id==='\0drone-rescue-panel')return panel;if(id==='\0drone-rescue-nyc')return readFileSync(resolve(repo,'scripts/gods_eye_nyc.js'),'utf8');},
+  configureServer(server){server.middlewares.use((request,response,next)=>{
+    if(request.url?.split('?')[0]!=='/__rescue/nyc-config')return next();
+    response.setHeader('Content-Type','application/json');response.setHeader('Cache-Control','no-store');
+    response.end(JSON.stringify({...nycConfig,access_token:nycToken}));
+  });},
   transformIndexHtml(){return [{tag:'script',attrs:{type:'module',src:'/__rescue/panel.js'},injectTo:'body'}];}};
 const server=await createServer({...config,configFile:false,root:upstream,plugins:[...(config.plugins || []),plugin],
   server:{...config.server,host:'127.0.0.1',port:Number(process.env.GODS_EYE_VIEW_PORT || 4173),strictPort:true,
