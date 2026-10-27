@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "py -m unittest discover -s tests",
-    "build:world": "node scripts/build_nasa_world.cjs"
+    "build:world": "node scripts/build_nasa_world.cjs",
+    "build:fictional": "node scripts/build_fictional_rescue.cjs"
   },
   "repository": {
     "type": "git",

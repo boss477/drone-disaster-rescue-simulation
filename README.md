@@ -17,6 +17,22 @@ This repository contains three independent parts plus an optional Raspberry Pi c
 | QGroundControl telemetry (SITL-only) | Streams the simulated mission over UDP MAVLink | `./run_all_demo.ps1` |
 | Wall-crack payload (Pi / laptop) | Perception payload, needs optional `.pth` files | see further below |
 
+## Detailed fictional rescue neighbourhood
+
+Open [Harbour Ward](fictional_rescue.html) from the Earth dashboard, or run:
+
+```powershell
+py -m http.server 8877 --bind 127.0.0.1
+```
+
+Visit `http://127.0.0.1:8877/fictional_rescue.html`. If the existing demo server already uses 8877, just open that URL; do not start a second server.
+
+This compact fictional district includes textured building facades, balconies, rooftop equipment, roads, cars, trees, surrounding hills and animated floodwater. Start the mission to load three packs, fly to the rooftop refuge, lower each pack and return to the depot. Pause/resume, reset, 1×/2×/4× speed and district/street/rooftop/follow cameras are available. Drag to orbit, scroll to zoom and right-drag to pan.
+
+All people, scenery, floodwater and aid deliveries are fictional. This page sends no hardware commands and needs no map token or external assets. It is a game-style training scene, not a reconstruction of any real incident or an AAA game environment. Geometry and textures are generated locally; the bundled Three.js runtime retains its [MIT license](vendor/licenses/THREE-LICENSE.txt).
+
+The ready-to-run bundle is committed. To edit the scene, change `world/fictional_rescue.js`, then run `npm ci` and `npm run build:fictional`. Browser verification: `py tests/fictional_rescue_browser_check.py` with the local server running.
+
 ## Quick start (Windows, fresh clone)
 
 ```powershell
