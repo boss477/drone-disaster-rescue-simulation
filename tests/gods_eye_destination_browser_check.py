@@ -16,7 +16,7 @@ def main():
         page.route('**/earthquake.usgs.gov/**/2.5_day.geojson',lambda r:r.fulfill(json={'features':[]}))
         try:
             page.goto('http://127.0.0.1:4173/?drone=1&flightLat=40.6937&flightLon=-73.7814',wait_until='domcontentloaded',timeout=90000)
-            page.wait_for_function('window.RescueCityFlight?.getState().running && RescueCityFlight.getState().modelReady',timeout=90000)
+            page.wait_for_function('window.RescueCityFlight?.getState().mode==="hover" && RescueCityFlight.getState().modelReady',timeout=90000)
             c=page.get_by_text('EXPLORE MANUALLY',exact=True)
             if c.count() and c.is_visible():c.click()
             root=page.locator('#droneRescueBridge')

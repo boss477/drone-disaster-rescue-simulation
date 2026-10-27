@@ -6,9 +6,19 @@ export function installCityFlight({application,el,nyc}){
   let viewer=null,drone=null,path=null,running=false,paused=false,following=false,planning=false,generation=0;
   let route=[],distance=0,length=0,ground=0,cruise=0,sampled=0,lastTime=performance.now(),lastLabel=0,modelReady=false;
   let position=new Cesium.Cartesian3(),orientation=new Cesium.Quaternion(),centre=null;
-  let mode='loop',destination=null,destinationMarker=null,arrived=false,timeScale=1,cumulative=[];
+  let mode='hover',destination=null,destinationMarker=null,arrived=false,timeScale=1,cumulative=[];
   let picking=false,pickHandler=null,pickRestore=null,oldCursor='';
-  const owner='rescue-city-flight',segments=64,radius=90;
+  let directClicks=true;
+  const owner='rescue-city-flight';
+  const toolbar=document.createElement('div');toolbar.id='cityDirectFlight';
+  toolbar.style.cssText='position:fixed;top:78px;left:50%;transform:translateX(-50%);z-index:7000;max-width:calc(100vw - 24px);width:540px;background:#123132f5;border:1px solid #80e2ba;border-radius:12px;padding:12px 16px;color:#e5fff1;font:12px Segoe UI,sans-serif;box-shadow:0 5px 24px #0006';
+  toolbar.innerHTML='<b>CLICK MAP TO FLY · v2 · SIMULATION</b><label style="float:right;cursor:pointer"><input id="cityDirectToggle" type="checkbox" checked> Map clicks fly</label><p id="cityQuickStatus" style="margin:8px 0">Loading drone controls…</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button id="cityQuickPlace">Place in this view</button><button id="cityQuickPause">Pause</button><button id="cityQuickFollow">Follow drone</button><button id="cityQuickReset">Reset</button></div>';
+  for(const b of toolbar.querySelectorAll('button'))b.style.cssText='background:#a7e7c7;color:#153e33;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;font:inherit';
+  document.body.append(toolbar);
+  const syncToolbar=()=>{document.getElementById('cityQuickStatus').textContent=el('cityFlightStatus').textContent;for(const [button,source]of [['cityQuickPlace','cityFlight'],['cityQuickPause','cityPause'],['cityQuickFollow','cityFollow'],['cityQuickReset','cityReset']]){const b=document.getElementById(button);b.disabled=el(source).disabled;if(button!=='cityQuickPlace')b.textContent=el(source).textContent;}};
+  for(const [button,source]of [['cityQuickPlace','cityFlight'],['cityQuickPause','cityPause'],['cityQuickFollow','cityFollow'],['cityQuickReset','cityReset']])document.getElementById(button).onclick=()=>{el(source).click();syncToolbar();};
+  document.getElementById('cityDirectToggle').onchange=event=>{directClicks=event.target.checked;el('cityFlightStatus').textContent=directClicks?'Click the map directly to send the drone there.':'Map click-to-fly is off. Use Choose destination when you want to send the drone.';};
+  const toolbarObserver=new MutationObserver(syncToolbar);toolbarObserver.observe(el('cityFlightControls'),{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['disabled']});syncToolbar();
   const needsGlobal=c=>Math.abs(Cesium.Math.toDegrees(c.latitude)-40.7)>.35||Math.abs(Cesium.Math.toDegrees(c.longitude)+74)>.4;
   function unpinInitialArea(){const url=new URL(location.href);url.searchParams.delete('flightLat');url.searchParams.delete('flightLon');history.replaceState(history.state,'',url);}
   function freeCamera(){following=false;el('cityFollow').textContent='Follow drone';if(viewer&&!viewer.isDestroyed())viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);}
@@ -16,7 +26,7 @@ export function installCityFlight({application,el,nyc}){
     stopPicking();
     generation++;running=false;paused=false;planning=false;releaseContinuousRender(owner);freeCamera();
     if(viewer&&!viewer.isDestroyed()){if(drone)viewer.entities.remove(drone);if(path)viewer.entities.remove(path);if(destinationMarker)viewer.entities.remove(destinationMarker);viewer.scene.requestRender();}
-    drone=null;path=null;destinationMarker=null;route=[];distance=0;modelReady=false;mode='loop';destination=null;arrived=false;timeScale=1;cumulative=[];
+    drone=null;path=null;destinationMarker=null;route=[];distance=0;modelReady=false;mode='hover';destination=null;arrived=false;timeScale=1;cumulative=[];
     el('cityPause').disabled=true;el('cityPause').textContent='Pause';el('cityFlight').disabled=false;
     el('cityFlightStatus').textContent='Ready. Place a drone in this view, or choose a location on the map.';
   }
@@ -33,7 +43,8 @@ export function installCityFlight({application,el,nyc}){
   }
   function place(){
     if(!route.length)return;
-    const travelled=mode==='loop'?distance%length:Math.min(distance,length);
+    if(mode==='hover'){position=Cesium.Cartesian3.clone(route[0]);orientation=Cesium.Transforms.headingPitchRollQuaternion(position,new Cesium.HeadingPitchRoll(0,0,0));if(following)viewer.camera.lookAt(position,new Cesium.HeadingPitchRange(Math.PI,-.32,65));return;}
+    const travelled=Math.min(distance,length);
     let i=0;while(i<route.length-2&&cumulative[i+1]<travelled)i++;
     const fraction=Math.max(0,Math.min(1,(travelled-cumulative[i])/(cumulative[i+1]-cumulative[i]||1)));
     position=Cesium.Cartesian3.lerp(route[i],route[i+1],fraction,new Cesium.Cartesian3());
@@ -71,12 +82,7 @@ export function installCityFlight({application,el,nyc}){
       // Off-screen coarse terrain can return a distant tile's ocean-height
       // estimate. Prefer the picked surface (or explicit-point datum) in that case.
       if(!Number.isFinite(ground)||Math.abs(ground-target.height)>500)ground=target.height || 0;
-      const origin=Cesium.Cartesian3.fromRadians(target.longitude,target.latitude,ground);
-      const frame=Cesium.Transforms.eastNorthUpToFixedFrame(origin),samples=[];
-      for(let i=0;i<=segments;i++){
-        const angle=i/segments*Math.PI*2,local=new Cesium.Cartesian3((Math.cos(angle)-1)*radius,Math.sin(angle)*radius,0);
-        samples.push(Cesium.Cartographic.fromCartesian(Cesium.Matrix4.multiplyByPoint(frame,local,new Cesium.Cartesian3())));
-      }
+      const samples=[Cesium.Cartographic.clone(target)];
       let roofs=[];
       if(viewer.scene.sampleHeightSupported){
         let timer;
@@ -89,9 +95,8 @@ export function installCityFlight({application,el,nyc}){
       const heights=roofs.map(c=>c?.height).filter(Number.isFinite);sampled=heights.length;
       const terrain=samples.map(c=>viewer.scene.globe.getHeight(c)).filter(h=>Number.isFinite(h)&&Math.abs(h-ground)<500);
       cruise=Math.max(ground,target.height || 0,...terrain,...heights)+(sampled?25:120);
-      route=samples.map(c=>Cesium.Cartesian3.fromRadians(c.longitude,c.latitude,cruise));
-      measureRoute();distance=0;
-      path=viewer.entities.add({name:'Simulated drone route',polyline:{positions:route,arcType:Cesium.ArcType.NONE,width:3,material:Cesium.Color.CYAN.withAlpha(.65)}});
+      route=[Cesium.Cartesian3.fromRadians(target.longitude,target.latitude,cruise)];
+      cumulative=[0];length=0;distance=0;mode='hover';
       position=Cesium.Cartesian3.clone(route[0]);
       drone=viewer.entities.add({name:'Rescue quadcopter · simulation',
         position:new Cesium.CallbackPositionProperty((time,result)=>Cesium.Cartesian3.clone(position,result),false),
@@ -100,9 +105,9 @@ export function installCityFlight({application,el,nyc}){
           silhouetteColor:Cesium.Color.fromCssColorString('#75f4ce'),silhouetteSize:1},
         label:{text:'RESCUE DRONE · SIM',font:'bold 12px sans-serif',fillColor:Cesium.Color.WHITE,outlineColor:Cesium.Color.BLACK,
           outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,pixelOffset:new Cesium.Cartesian2(0,-42),distanceDisplayCondition:new Cesium.DistanceDisplayCondition(0,600)}});
-      following=true;running=true;paused=false;lastTime=performance.now();viewer.camera.cancelFlight();holdContinuousRender(owner);
-      el('cityFollow').textContent='Free camera';el('cityPause').disabled=false;place();
-      el('cityFlightStatus').textContent=sampled?'Flying above sampled rooftop heights · simulation.':'Flying at a terrain-based altitude · building-height sampling unavailable.';
+      following=true;running=false;paused=false;lastTime=performance.now();viewer.camera.cancelFlight();holdContinuousRender(owner);
+      el('cityPause').disabled=true;place();freeCamera();
+      el('cityFlightStatus').textContent='Hovering. Click any ground point on the map to fly there—no patrol loop.';
       viewer.scene.requestRender();
     }catch(error){if(version===generation)el('cityFlightStatus').textContent=error.message;}
     finally{releaseContinuousRender(preflight);if(version===generation){planning=false;el('cityFlight').disabled=false;}}
@@ -131,6 +136,8 @@ export function installCityFlight({application,el,nyc}){
     el('cityPause').disabled=true;el('cityFlight').disabled=true;el('cityFlightStatus').textContent='Planning flight to the selected destination…';
     const preflight=owner+'-destination-'+version;holdContinuousRender(preflight);
     try{
+      if(destinationMarker)viewer.entities.remove(destinationMarker);
+      destinationMarker=viewer.entities.add({name:'Planning selected destination',position:Cesium.Cartesian3.fromRadians(target.longitude,target.latitude,Math.max(0,target.height || 0)+10),point:{pixelSize:14,color:Cesium.Color.GOLD,outlineWidth:2,outlineColor:Cesium.Color.BLACK}});
       await nyc.ensureBuildings({global:needsGlobal(target)});if(version!==generation)return;
       const from=Cesium.Cartographic.fromCartesian(position),trip=greatCircleRoute(from,target,128);
       if(trip.surfaceDistance<2){el('cityFlightStatus').textContent='The drone is already at that point. Choose a point farther away.';return;}
@@ -170,7 +177,7 @@ export function installCityFlight({application,el,nyc}){
     freeCamera();picking=true;oldCursor=viewer.canvas.style.cursor;viewer.canvas.style.cursor='crosshair';el('cityFlightControls').hidden=false;
     el('cityDestination').textContent='Cancel destination selection';el('cityFlightStatus').textContent=drone?'Pan or zoom, then click anywhere on the ground to send the drone there.':'Click anywhere on the globe to place and fly the drone there.';
     const hint=document.createElement('div');hint.id='cityDestinationHint';hint.textContent='CLICK A DESTINATION ON THE MAP · Esc to cancel';
-    hint.style.cssText='position:fixed;top:85px;left:50%;transform:translateX(-50%);z-index:8000;background:#173b3bf2;border:1px solid #8ee6c4;border-radius:10px;padding:12px 18px;color:#d9ffee;font:12px Segoe UI,sans-serif;pointer-events:none';document.body.append(hint);
+    hint.style.cssText='position:fixed;top:225px;left:50%;transform:translateX(-50%);z-index:8000;background:#173b3bf2;border:1px solid #8ee6c4;border-radius:10px;padding:12px 18px;color:#d9ffee;font:12px Segoe UI,sans-serif;pointer-events:none';document.body.append(hint);
     pickHandler=new Cesium.ScreenSpaceEventHandler(viewer.canvas);
     pickHandler.setInputAction(click=>{
       if(!picking)return;const target=pickGround(click.position);
@@ -195,19 +202,28 @@ export function installCityFlight({application,el,nyc}){
     viewer.canvas.addEventListener('pointerdown',releaseForInput,{capture:true,passive:true});
     viewer.canvas.addEventListener('wheel',releaseForInput,{capture:true,passive:true});
     addEventListener('rescue:map-navigation',releaseForInput);
+    const directHandler=new Cesium.ScreenSpaceEventHandler(viewer.canvas);
+    directHandler.setInputAction(click=>{
+      if(!directClicks||picking)return;
+      const picked=viewer.scene.pick(click.position);
+      if(picked?.id===drone||picked?.id===destinationMarker||picked?.id?.rescueReportId)return;
+      const target=pickGround(click.position);if(!target)return;
+      if(planning&&!drone){el('cityFlightStatus').textContent='Placing the drone… wait until it appears, then click your destination.';return;}
+      el('cityFlightControls').hidden=false;navigate(target).catch(error=>{el('cityFlightStatus').textContent=error.message;});
+    },Cesium.ScreenSpaceEventType.LEFT_CLICK);
     const remove=viewer.scene.preUpdate.addEventListener(()=>{
       const now=performance.now(),dt=Math.max(0,Math.min(.1,(now-lastTime)/1000));lastTime=now;
-      if(!running||paused||document.hidden)return;
-      distance+=dt*Number(el('citySpeed').value)*timeScale;if(mode==='destination')distance=Math.min(length,distance);place();
       // The visualizer's model primitive confirms the GLB has actually loaded.
-      if(!modelReady){for(let i=0;i<viewer.scene.primitives.length;i++){const p=viewer.scene.primitives.get(i);if(p.id===drone&&p.ready)modelReady=true;}}
+      if(drone&&!modelReady){for(let i=0;i<viewer.scene.primitives.length;i++){const p=viewer.scene.primitives.get(i);if(p.id===drone&&p.ready){modelReady=true;if(!running)releaseContinuousRender(owner);}}}
+      if(!running||paused||document.hidden)return;
+      distance+=dt*Number(el('citySpeed').value)*timeScale;distance=Math.min(length,distance);place();
       if(mode==='destination'&&distance>=length){arrived=true;running=false;paused=false;releaseContinuousRender(owner);el('cityPause').disabled=true;el('cityFlightStatus').textContent='Arrived at your selected destination · simulated hover. Choose another destination to continue.';viewer.scene.requestRender();}
-      else if(now-lastLabel>500){el('cityFlightStatus').textContent=mode==='destination'?`Flying to your destination · ${Math.max(0,length-distance).toFixed(0)} m remaining`+(timeScale>1?` · DEMO time ×${timeScale.toFixed(1)}`:''):`Simulated flight · ${el('citySpeed').value} m/s · loop ${Math.floor(distance/length)+1} · ${(cruise-ground).toFixed(0)} m above local ground estimate`+(sampled?' · sampled roof heights':' · terrain-only height');lastLabel=now;}
+      else if(now-lastLabel>500){el('cityFlightStatus').textContent=`Flying to your destination · ${Math.max(0,length-distance).toFixed(0)} m remaining`+(timeScale>1?` · DEMO time ×${timeScale.toFixed(1)}`:'');lastLabel=now;}
     });
-    addEventListener('pagehide',()=>{reset();remove();viewer.canvas.removeEventListener('pointerdown',releaseForInput,true);viewer.canvas.removeEventListener('wheel',releaseForInput,true);removeEventListener('rescue:map-navigation',releaseForInput);},{once:true});
+    addEventListener('pagehide',()=>{reset();remove();directHandler.destroy();toolbarObserver.disconnect();toolbar.remove();viewer.canvas.removeEventListener('pointerdown',releaseForInput,true);viewer.canvas.removeEventListener('wheel',releaseForInput,true);removeEventListener('rescue:map-navigation',releaseForInput);},{once:true});
   });
   document.addEventListener('visibilitychange',()=>{lastTime=performance.now();if(document.hidden)releaseContinuousRender(owner);else if(running&&!paused)holdContinuousRender(owner);});
-  const api={getState:()=>({running,paused,following,planning,modelReady,distance,routeLength:length,cruiseHeight:cruise,groundHeight:ground,mode,picking,arrived,timeScale,
+  const api={getState:()=>({running,paused,following,planning,modelReady,distance,routeLength:length,cruiseHeight:cruise,groundHeight:ground,mode,picking,arrived,timeScale,directClicks,routeVisible:!!path,
     destination:destination?{lat:Cesium.Math.toDegrees(destination.latitude),lon:Cesium.Math.toDegrees(destination.longitude)}:null,
     sampledHeights:sampled,position:Cesium.Cartesian3.clone(position),centre:centre?{lat:Cesium.Math.toDegrees(centre.latitude),lon:Cesium.Math.toDegrees(centre.longitude)}:null,simulation_only:true,hardware_commands:false})};
   window.RescueCityFlight=api;

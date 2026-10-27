@@ -16,10 +16,14 @@ def main():
         page.route('**/earthquake.usgs.gov/**/2.5_day.geojson',lambda r:r.fulfill(json={'features':[]}))
         try:
             page.goto('http://127.0.0.1:4173/?drone=1&flightLat=40.6937&flightLon=-73.7814',wait_until='domcontentloaded',timeout=90000)
-            page.wait_for_function('window.RescueCityFlight?.getState().running',timeout=90000)
+            page.wait_for_function('window.RescueCityFlight?.getState().mode==="hover" && RescueCityFlight.getState().modelReady',timeout=90000)
             page.wait_for_function('RescueCityFlight.getState().modelReady && RescueNewYork.getState().featuresLoaded>0',timeout=60000)
             chooser=page.get_by_text('EXPLORE MANUALLY',exact=True)
             if chooser.count() and chooser.is_visible():chooser.click()
+            assert page.locator('#cityDirectFlight').is_visible()
+            assert not page.evaluate('RescueCityFlight.getState().routeVisible')
+            page.mouse.click(1050,700)
+            page.wait_for_function('RescueCityFlight.getState().running && !RescueCityFlight.getState().planning',timeout=45000)
             before=page.evaluate('RescueCityFlight.getState()')
             assert abs(before['centre']['lat']-40.6937)<1e-6
             assert abs(before['centre']['lon']+73.7814)<1e-6
