@@ -15,7 +15,7 @@ def main():
         page.route('**/eonet.gsfc.nasa.gov/api/v3/events*', lambda r: r.fulfill(json={'events': []}))
         page.route('**/earthquake.usgs.gov/**/2.5_day.geojson', lambda r: r.fulfill(json={'features': []}))
         try:
-            page.goto('http://127.0.0.1:4173/?nyc=1&drone=1&flightLat=40.7075&flightLon=-74.0113&v=rescue-v3', wait_until='domcontentloaded', timeout=90000)
+            page.goto('http://127.0.0.1:4173/?nyc=1&drone=1&flightLat=40.7075&flightLon=-74.0113&v=rescue-v4', wait_until='domcontentloaded', timeout=90000)
             page.wait_for_function('window.RescueCityFlight?.getState().modelReady && !RescueCityFlight.getState().planning', timeout=120000)
             chooser = page.get_by_text('EXPLORE MANUALLY', exact=True)
             if chooser.count() and chooser.is_visible():
@@ -37,6 +37,16 @@ def main():
             page.locator('#cityQuickPause').click()
             page.wait_for_function('RescueCityFlight.getState().rescue.stage === "outbound" && RescueCityFlight.getState().running && !RescueCityFlight.getState().planning', timeout=45000)
             assert page.evaluate('RescueCityFlight.getState().rescue.onboard') == 3
+            assert page.evaluate('RescueCityFlight.getState().cameraTilt') == 55
+            page.locator('#cityQuickPause').click()
+            paused_position = page.evaluate('RescueCityFlight.getState().position')
+            page.locator('#cityCameraTilt').evaluate('e=>{e.value="60";e.dispatchEvent(new Event("input",{bubbles:true}));}')
+            page.locator('#cityCameraOrbit').click()
+            assert page.evaluate('RescueCityFlight.getState().cameraTilt') == 60
+            pitch = page.evaluate('window.__godsEyeView.viewer.camera.pitch * 180 / Math.PI')
+            assert abs(pitch + 60) < 1, ('Camera must remain tilted during rescue', pitch)
+            assert page.evaluate('RescueCityFlight.getState().position') == paused_position
+            page.locator('#cityQuickPause').click()
             page.wait_for_function('RescueCityFlight.getState().rescue.stage === "unloading"', timeout=90000)
             page.wait_for_timeout(300)
             print('Unloading state:', page.evaluate('RescueCityFlight.getState()'))
@@ -72,7 +82,7 @@ def main():
             assert page.evaluate('RescueCityFlight.getState().rescue.stage') == 'idle'
             assert not commands, commands
             assert not errors, errors
-            print('New York: forward movement, loading pause/resume, 3-package unload animation, exact return to base, custom drop, abort, reset, no hardware calls: PASS')
+            print('New York: tilted 3D follow, live tilt/orbit controls, forward movement, loading pause/resume, 3-package unload animation, exact return to base, custom drop, abort, reset, no hardware calls: PASS')
         finally:
             if page.locator('#cityQuickStatus').count():
                 print('Status:', page.locator('#cityQuickStatus').inner_text())

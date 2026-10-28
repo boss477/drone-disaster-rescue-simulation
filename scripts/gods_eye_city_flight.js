@@ -10,6 +10,7 @@ export function installCityFlight({application,el,nyc}){
   let picking=false,pickHandler=null,pickRestore=null,oldCursor='';
   let directClicks=true,rescueSelecting=false;
   let rescue={stage:'idle',onboard:0,delivered:0,elapsed:0,base:null,target:null},parcel=null;
+  let cameraTilt=55,cameraOrbit=0,cameraOffset=0,lastCameraProbe=0,cameraDistance=220;
   const rescueActive=()=>['loading','outbound','unloading','returning'].includes(rescue.stage);
   const owner='rescue-city-flight';
   const toolbar=document.createElement('div');toolbar.id='cityDirectFlight';
@@ -17,6 +18,13 @@ export function installCityFlight({application,el,nyc}){
   toolbar.innerHTML='<b>DRONE FLIGHT + RESCUE · v3 · SIMULATION</b><label style="float:right;cursor:pointer"><input id="cityDirectToggle" type="checkbox" checked> Map clicks fly</label><p id="cityQuickStatus" style="margin:8px 0">Loading drone controls…</p><div style="display:flex;gap:6px;flex-wrap:wrap"><button id="cityQuickPlace">Place in this view</button><button id="cityFlyForward">Fly forward 120 m</button><button id="cityRescue">Start rescue</button><button id="cityAbortRescue">Abort rescue</button><button id="cityQuickPause">Pause</button><button id="cityQuickFollow">Follow drone</button><button id="cityQuickReset">Reset</button></div><p id="cityRescueInventory" style="margin:8px 0 0">Simulated supplies · onboard 0 · delivered 0</p>';
   for(const b of toolbar.querySelectorAll('button'))b.style.cssText='background:#a7e7c7;color:#153e33;border:0;border-radius:6px;padding:8px 10px;cursor:pointer;font:inherit';
   document.body.append(toolbar);
+  toolbar.querySelector('b').textContent='DRONE FLIGHT + RESCUE · v4 · TILTED 3D';
+  const cameraControls=document.createElement('div');cameraControls.style.cssText='display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap';
+  cameraControls.innerHTML='<label>3D tilt <input id="cityCameraTilt" type="range" min="30" max="80" value="55" style="width:110px;vertical-align:middle"> <span id="cityCameraTiltValue">55°</span></label><button id="cityCameraOrbit">Rotate view ↻</button>';
+  toolbar.append(cameraControls);document.getElementById('cityCameraOrbit').style.cssText=toolbar.querySelector('button').style.cssText;
+  const applyCamera=()=>{lastCameraProbe=0;if(!drone)return;following=true;viewer.camera.cancelFlight();el('cityFollow').textContent='Free camera';place();viewer.scene.requestRender();};
+  document.getElementById('cityCameraTilt').oninput=event=>{cameraTilt=Number(event.target.value);document.getElementById('cityCameraTiltValue').textContent=cameraTilt+'°';applyCamera();};
+  document.getElementById('cityCameraOrbit').onclick=()=>{cameraOrbit+=Math.PI/4;cameraOffset=0;applyCamera();};
   const buttonStyle=document.createElement('style');buttonStyle.textContent='#cityDirectFlight button:disabled{opacity:.4;cursor:not-allowed!important}';toolbar.append(buttonStyle);
   const selectRescue=document.createElement('button');selectRescue.id='cityRescueDrop';selectRescue.textContent='Choose rescue drop';selectRescue.style.cssText=toolbar.querySelector('button').style.cssText;document.getElementById('cityRescue').after(selectRescue);
   selectRescue.onclick=()=>{rescueSelecting=!rescueSelecting;selectRescue.textContent=rescueSelecting?'Cancel drop selection':'Choose rescue drop';if(viewer)viewer.canvas.style.cursor=rescueSelecting?'crosshair':'';el('cityFlightStatus').textContent=rescueSelecting?'Click a drop zone on the map. The drone will load supplies, deliver, and return to base.':'Drop selection cancelled.';};
@@ -89,10 +97,23 @@ export function installCityFlight({application,el,nyc}){
     return Cesium.Cartographic.fromCartesian(point);
   }
   function followCamera(heading){
-    // Track the aircraft's own vertical column. An offset chase camera can
-    // see a clear endpoint but have a skyscraper across its line of sight.
-    // Free camera remains available for oblique city inspection.
-    viewer.camera.lookAt(position,new Cesium.HeadingPitchRange(heading,-Math.PI/2+.001,180));
+    const aim=(offset,range)=>viewer.camera.lookAt(position,new Cesium.HeadingPitchRange(heading+cameraOrbit+offset,-Cesium.Math.toRadians(cameraTilt),range));
+    // Keep the requested tilt. If a tower blocks the chase view, try another
+    // side of the aircraft, then a closer camera, instead of forcing top-down.
+    if(performance.now()-lastCameraProbe>1200){
+      lastCameraProbe=performance.now();let clear=false;
+      for(const range of [220,90,35]){
+        for(let i=0;i<8;i++){
+          const offset=cameraOffset+i*Math.PI/4;aim(offset,range);
+          const delta=Cesium.Cartesian3.subtract(viewer.camera.positionWC,position,new Cesium.Cartesian3());
+          const ray=new Cesium.Ray(position,Cesium.Cartesian3.normalize(delta,new Cesium.Cartesian3()));
+          let hit;try{hit=viewer.scene.pickFromRay(ray,viewer.entities.values,.1);}catch{/* unavailable depth */}
+          if(!hit?.position||Cesium.Cartesian3.distance(position,hit.position)>range-3){cameraOffset=offset;cameraDistance=range;clear=true;break;}
+        }
+        if(clear)break;
+      }
+    }
+    aim(cameraOffset,cameraDistance);
   }
   function place(){
     if(!route.length)return;
@@ -297,6 +318,7 @@ export function installCityFlight({application,el,nyc}){
   });
   document.addEventListener('visibilitychange',()=>{lastTime=performance.now();if(document.hidden)releaseContinuousRender(owner);else if((running||rescueActive())&&!paused)holdContinuousRender(owner);});
   const api={getState:()=>({running,paused,following,planning,modelReady,distance,routeLength:length,cruiseHeight:cruise,groundHeight:ground,mode,picking,arrived,timeScale,directClicks,routeVisible:!!path,
+    cameraTilt,cameraDistance,
     rescue:{stage:rescue.stage,onboard:rescue.onboard,delivered:rescue.delivered,elapsed:rescue.elapsed,base:rescue.base?{longitude:rescue.base.longitude,latitude:rescue.base.latitude}:null},
     destination:destination?{lat:Cesium.Math.toDegrees(destination.latitude),lon:Cesium.Math.toDegrees(destination.longitude)}:null,
     sampledHeights:sampled,position:Cesium.Cartesian3.clone(position),centre:centre?{lat:Cesium.Math.toDegrees(centre.latitude),lon:Cesium.Math.toDegrees(centre.longitude)}:null,simulation_only:true,hardware_commands:false})};
