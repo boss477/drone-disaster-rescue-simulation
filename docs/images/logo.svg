@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Drone Disaster Rescue Simulation logo">
+  <defs>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="16" y1="16" x2="496" y2="496">
+      <stop offset="0" stop-color="#fdba74"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0f1720" stroke="url(#g)" stroke-width="12"/>
+  <!-- arms -->
+  <path d="M170 170 L342 342 M342 170 L170 342" stroke="#94a3b8" stroke-width="22" stroke-linecap="round"/>
+  <!-- rotors -->
+  <g fill="#0f1720" stroke="url(#g)" stroke-width="14">
+    <circle cx="150" cy="150" r="58"/>
+    <circle cx="362" cy="150" r="58"/>
+    <circle cx="150" cy="362" r="58"/>
+    <circle cx="362" cy="362" r="58"/>
+  </g>
+  <!-- body -->
+  <rect x="206" y="206" width="100" height="100" rx="26" fill="#1e293b" stroke="#94a3b8" stroke-width="10"/>
+  <!-- rescue cross -->
+  <path d="M256 228 V284 M228 256 H284" stroke="#f97316" stroke-width="18" stroke-linecap="round"/>
+</svg>

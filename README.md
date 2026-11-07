@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.svg" alt="Drone Disaster Rescue Simulation logo" width="128" /></p>
+
 # Drone Disaster Rescue Simulation
 
 [![CI](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml)
