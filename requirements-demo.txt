@@ -3,7 +3,7 @@ numpy
 opencv-python
 Pillow
 torch>=2.3,<3
-torchvision>=0.18,<1
+torchvision>=0.29.2,<1
 open_clip_torch
 huggingface_hub
 ultralytics
