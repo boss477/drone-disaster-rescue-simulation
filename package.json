@@ -24,7 +24,7 @@
   },
   "homepage": "https://github.com/boss477/drone-disaster-rescue-simulation#readme",
   "dependencies": {
-    "3d-tiles-renderer": "0.5.3",
+    "3d-tiles-renderer": "0.5.4",
     "three": "0.180.0"
   },
   "devDependencies": {
