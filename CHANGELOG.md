@@ -7,6 +7,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Project logo, a favicon for the four web pages, and a GitHub social-preview image.
 - `LICENSE` (MIT), security policy, contributing guide, code of conduct, issue and PR templates.
 - GitHub Actions CI running the Python test suite and the Node route-math test.
 - Dependabot for pip, npm and GitHub Actions.
