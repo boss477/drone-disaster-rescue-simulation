@@ -1,5 +1,11 @@
 # Drone Disaster Rescue Simulation
 
+[![CI](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Simulation only](https://img.shields.io/badge/scope-simulation%20only-orange)
+![Python](https://img.shields.io/badge/python-3.12-3776ab)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+
 > **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
 **Project status:** the no-key software demo, operator workflow, mission logs/replay, measured pretrained AI models, QGroundControl output, real PX4/Gazebo SITL validation, and sample OpenDroneMap reconstruction are implemented. The 100 physical latch cycles still require hardware evidence. See [PROJECT_STATUS.md](PROJECT_STATUS.md) for the audited checklist, exact run commands and finish plan. A demo video is not part of the required scope.
@@ -695,3 +701,10 @@ fixtures with the actual world renderer to check marker clicks, filters, source
 provenance, terrain/roof-aware delivery, abort, release gating and a partial feed
 outage. `py tests/live_incident_feed_check.py --mission` exercises real feed
 connections and a simulated delivery at a real reported event location.
+
+## Contributing, security and license
+
+- Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
+- Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). This project is simulation only and never controls real vehicles.
+- See the [changelog](CHANGELOG.md) for what changed.
+- Licensed under the [MIT License](LICENSE). Bundled and integrated upstream projects (Three.js, NASA 3D Tiles data, PX4, QGroundControl, Ultralytics, OpenDroneMap, God's Eye View) keep their own licenses; see [UPSTREAM_INTEGRATIONS.md](UPSTREAM_INTEGRATIONS.md) and [vendor/](vendor/).

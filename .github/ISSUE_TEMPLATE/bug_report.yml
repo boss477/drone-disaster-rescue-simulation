@@ -1,0 +1,49 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. For **security problems**, do not file a public issue; see
+        [SECURITY.md](https://github.com/boss477/drone-disaster-rescue-simulation/blob/master/SECURITY.md).
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Disaster image classifier
+        - 3D rescue simulation
+        - Live operations map
+        - Earth rescue / God's Eye View
+        - QGroundControl / MAVLink telemetry
+        - OpenDroneMap pipeline
+        - Payload (Pi / laptop)
+        - Setup / launch scripts
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: 'Windows 11, Python 3.12, Chrome 130'
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Logs or screenshots
