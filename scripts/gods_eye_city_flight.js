@@ -149,7 +149,9 @@ export function installCityFlight({application,el,nyc}){
         {offset:new Cesium.HeadingPitchRange(.3,-.6,450),duration:1,complete:resolve,cancel:resolve}));
       const terrainDeadline=performance.now()+12000;
       await new Promise(resolve=>setTimeout(resolve,250));
-      while(version===generation&&!viewer.scene.globe.tilesLoaded&&performance.now()<terrainDeadline)await new Promise(resolve=>setTimeout(resolve,250));
+      // generation changes when the user starts another flight while this one awaits.
+      const stillCurrent=()=>version===generation;
+      while(stillCurrent()&&!viewer.scene.globe.tilesLoaded&&performance.now()<terrainDeadline)await new Promise(resolve=>setTimeout(resolve,250));
       if(version!==generation)return;
       el('cityFlightStatus').textContent='Sampling the rooftop route…';
       ground=viewer.scene.globe.getHeight(target);
