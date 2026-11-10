@@ -1,12 +1,26 @@
-<p align="center"><img src="docs/images/logo.svg" alt="Drone Disaster Rescue Simulation logo" width="128" /></p>
+<p align="center"><img src="docs/images/logo.svg" alt="Drone Disaster Rescue Simulation logo" width="112" /></p>
 
-# Drone Disaster Rescue Simulation
+<h1 align="center">Drone Disaster Rescue Simulation</h1>
 
-[![CI](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-![Simulation only](https://img.shields.io/badge/scope-simulation%20only-orange)
-![Python](https://img.shields.io/badge/python-3.12-3776ab)
-![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+<p align="center"><strong>Fly the rescue. Nothing real moves.</strong></p>
+
+<p align="center">
+A flood-rescue drone simulation, a zero-shot disaster image classifier and a live operations map,
+with QGroundControl telemetry for SITL only.
+</p>
+
+<p align="center">
+  <a href="https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/boss477/drone-disaster-rescue-simulation/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="license: MIT" src="https://img.shields.io/badge/license-MIT-1f2a1f"></a>
+  <img alt="scope: simulation only" src="https://img.shields.io/badge/scope-simulation%20only-e0a800">
+  <img alt="python: 3.12" src="https://img.shields.io/badge/python-3.12-1f2a1f?logo=python&logoColor=white">
+  <img alt="platform: Windows" src="https://img.shields.io/badge/platform-Windows-1f2a1f">
+  <a href="https://boss477.github.io/drone-disaster-rescue-simulation/"><img alt="website: boss477.github.io" src="https://img.shields.io/badge/website-boss477.github.io-1f2a1f"></a>
+</p>
+
+![Harbour Ward mid-mission: the drone carrying three aid packs to a rooftop refuge](docs/images/harbour-ward.webp)
+
+<sub>Harbour Ward, the fictional district in `fictional_rescue.html`, captured mid-mission from a local run.</sub>
 
 > **SIMULATION ONLY.** The flood-rescue simulation, the telemetry bridge and the image classifier never control a real drone, motor or flight controller. All people, packages and deliveries in the 3D scene are simulated. Image-classifier output is an AI estimate, not a verified emergency decision.
 
