@@ -507,7 +507,7 @@ function animate(now) {
   for (const tiles of [...worldLayers,customLayer].filter(Boolean)) tiles.update();
   // Once terrain is visible it supplies its own OSM overlay. Avoid coincident
   // flat-map and terrain surfaces fighting over the same depth pixels.
-  if (worldLayers[0]) worldLayers[0].group.visible=!(terrainLayer?.visibleTiles.size>0);
+  if (worldLayers[0]) worldLayers[0].group.visible = !(terrainLayer?.visibleTiles.size > 0);
   if (now-lastCreditCheck>2000) {
     lastCreditCheck=now;
     const credits=[];
