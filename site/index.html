@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drone Disaster Rescue Simulation</title>
+<meta name="description" content="A flood-rescue drone simulation, a zero-shot disaster image classifier and a live operations map for Windows. Simulation only: nothing here controls a real drone.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="container">
+    <a class="wordmark" href="#main">Drone Rescue Sim</a>
+    <nav aria-label="Page">
+      <ul>
+        <li><a href="#parts">Parts</a></li>
+        <li><a href="#status">Status</a></li>
+        <li><a href="#run">Run it</a></li>
+        <li><a href="https://github.com/boss477/drone-disaster-rescue-simulation">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <section class="hero" id="main">
+    <div>
+      <h1>Fly the rescue. Nothing real moves.</h1>
+      <p class="lead">A flood-rescue drone simulation, an image classifier and a live operations map.</p>
+      <div class="actions">
+        <a class="btn btn--ink" href="https://github.com/boss477/drone-disaster-rescue-simulation">Clone the repository</a>
+        <a class="btn" href="https://github.com/boss477/drone-disaster-rescue-simulation/blob/master/PROJECT_STATUS.md">Read the audit</a>
+      </div>
+    </div>
+    <figure class="shot">
+      <div data-slot="hero" data-alt="The flooded street sample image from the repository">
+        <img src="images/flood_street.jpg" width="960" height="1280" alt="A flooded street, the sample image the classifier ships with" fetchpriority="high">
+      </div>
+      <strong class="shot__flag">Simulation only</strong>
+    </figure>
+  </section>
+</div>
+
+<main>
+<section class="parts" id="parts">
+  <div class="container">
+    <h2>Five parts, each runs alone</h2>
+    <table class="index">
+      <tbody>
+        <tr><td class="num">1</td><th scope="row">Disaster image classifier</th><td>Zero-shot CLIP over six labels.</td><td><code>py image_upload_demo.py</code></td></tr>
+        <tr><td class="num">2</td><th scope="row">3D rescue simulation</th><td>Flooded buildings, rooftop people, package inventory.</td><td><code>./run_rescue_simulation.ps1</code></td></tr>
+        <tr><td class="num">3</td><th scope="row">Live operations map</th><td>Real geography, weather and active disaster records.</td><td><code>./run_live_operations.ps1</code></td></tr>
+        <tr><td class="num">4</td><th scope="row">Operator-controlled rescue</th><td>A globe, missions you fly or abort, an evidence log.</td><td><code>./run_earth_rescue.ps1</code></td></tr>
+        <tr><td class="num">5</td><th scope="row">QGroundControl telemetry</th><td>The simulated mission over UDP MAVLink.</td><td><code>./run_all_demo.ps1</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="scene">
+  <div class="container">
+    <h2>Harbour Ward, mid-mission</h2>
+    <figure class="scene__shot">
+      <img src="images/harbour-ward.webp" width="1440" height="900" alt="The Harbour Ward 3D scene: a flooded district, the drone flying three aid packs to a rooftop refuge, mission panel at 30 percent complete" loading="lazy">
+      <figcaption>Captured from <code>fictional_rescue.html</code>, served locally. No map token, no hardware.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="labels">
+  <div class="container cols">
+    <div class="labels__text">
+      <h2>Six labels, zero-shot</h2>
+      <p class="lead">Give it a photograph. CLIP scores it against these.</p>
+    </div>
+    <ul class="cells">
+      <li>Flood</li>
+      <li>Fire</li>
+      <li>Earthquake damage</li>
+      <li>Landslide</li>
+      <li>Storm damage</li>
+      <li>Normal</li>
+      <li class="cell--ink">The output is an AI estimate, not a verified emergency decision.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="say">
+  <div class="container">
+    <p>Every person, package and delivery is simulated.</p>
+    <p>Nothing here controls a real drone, motor or flight controller.</p>
+  </div>
+</section>
+
+<section class="status" id="status">
+  <div class="container">
+    <h2>Built, and still owed</h2>
+    <ul class="cells">
+      <li>No-key software demo</li>
+      <li>Operator workflow</li>
+      <li>Mission logs and replay</li>
+      <li>Measured pretrained models</li>
+      <li>QGroundControl output</li>
+      <li>PX4 and Gazebo SITL validation</li>
+      <li>Sample OpenDroneMap reconstruction</li>
+      <li class="cell--ink">Owed: 100 physical latch cycles still need hardware evidence.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="run" id="run">
+  <div class="container cols">
+    <div class="run__text">
+      <h2>Set it up on Windows</h2>
+      <p class="lead">One script builds the environment and checks the install.</p>
+      <div class="actions"><a class="btn" href="https://github.com/boss477/drone-disaster-rescue-simulation#quick-start-windows-fresh-clone">Open the quick start</a></div>
+    </div>
+    <figure>
+      <pre tabindex="0" aria-label="Quick start commands"><code>git clone https://github.com/boss477/drone-disaster-rescue-simulation
+cd drone-disaster-rescue-simulation
+./setup.ps1
+./run_rescue_simulation.ps1</code></pre>
+      <figcaption>PowerShell, Python 3.12. Add <code>-Mavlink</code> to the setup for the QGroundControl bridge.</figcaption>
+    </figure>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="container cols">
+    <a class="wordmark" href="#main">Drone Disaster Rescue Simulation</a>
+    <ul>
+      <li><a href="https://github.com/boss477/drone-disaster-rescue-simulation">Repository</a></li>
+      <li><a href="https://github.com/boss477/drone-disaster-rescue-simulation/blob/master/UPSTREAM_INTEGRATIONS.md">Upstream projects</a></li>
+      <li><a href="https://github.com/boss477/drone-disaster-rescue-simulation/blob/master/SECURITY.md">Security</a></li>
+    </ul>
+    <small>MIT licence. Photograph: the flood sample image from the repository.</small>
+  </div>
+</footer>
+</body>
+</html>
